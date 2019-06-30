@@ -87,6 +87,7 @@ def verilog_test(
             srcs = srcs,
             deps = deps,
             defines = [
+                "DIE_ON_ASSERT",
             ],
     )
     vvp_test(

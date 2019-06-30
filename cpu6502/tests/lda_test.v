@@ -1,16 +1,17 @@
 `define STRINGIFY(x) `"x`"
-`ifdef VCDOUT
-`define ASSERT_AT(count_, cond_)
+`ifdef DIE_ON_ASSERT
+`define DIE $finish_and_return(1);
 `else
-`define VCDOUT "test.vcd"
+`define DIE
+`endif
+`define VCDOUT {`__FILE__, ".vcd"}
 `define ASSERT_AT(count_, cond_) \
     if (count_ == counter && (cond_) != 1) \
     begin \
         $display("[%s, %d] Assertion failed: %s", \
                  `__FILE__, `__LINE__, `STRINGIFY(cond_)); \
-        $finish_and_return(1); \
+        `DIE \
     end
-`endif
 
 module rom(address, data, rd);
 input [15:0] address;
@@ -125,7 +126,7 @@ begin
 
     // LDA ($02),y
     `ASSERT_AT(16'ha4, addr == 16'hffa9);
-    `ASSERT_AT(16'ha4, idata == 8'haa);
+    `ASSERT_AT(16'ha4, idata == 8'hab);
 end
 
 endmodule
