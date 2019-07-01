@@ -5,6 +5,9 @@ load("//rules:verilog.bzl", "verilog_library",
 
 # Tests for instructions which use the ALU
 
+# The ORA tests exercise all of the address modes
+# The logic for ORA, AND, EOR, ADC, SBC and CMP all use the same states,
+# so the tests for the other operations only have to test op-result and flags.
 verilog_test(
     name = "ora_imm_test",
     srcs = [ "ora_imm_test.v" ],
@@ -47,9 +50,36 @@ verilog_test(
 )
 
 
+verilog_test(
+    name = "and_nflag_test",
+    srcs = [ "and_nflag_test.v" ],
+    deps = [ "//cpu6502" ],
+)
+verilog_test(
+    name = "and_zflag_test",
+    srcs = [ "and_zflag_test.v" ],
+    deps = [ "//cpu6502" ],
+)
 
+verilog_test(
+    name = "eor_nflag_test",
+    srcs = [ "eor_nflag_test.v" ],
+    deps = [ "//cpu6502" ],
+)
+verilog_test(
+    name = "eor_zflag_test",
+    srcs = [ "eor_zflag_test.v" ],
+    deps = [ "//cpu6502" ],
+)
 
-
-
-
+verilog_test(
+    name = "adc_zcflag_test",
+    srcs = [ "adc_zcflag_test.v" ],
+    deps = [ "//cpu6502" ],
+)
+verilog_test(
+    name = "adc_nvflag_test",
+    srcs = [ "adc_nvflag_test.v" ],
+    deps = [ "//cpu6502" ],
+)
 

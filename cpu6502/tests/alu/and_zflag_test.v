@@ -22,15 +22,13 @@ reg [7:0] data;
 always @(rd or address)
 begin
     case (address)
-        0: data = 8'ha9;    // LDA #$03
-        1: data = 8'h03;    // 
-        2: data = 8'h0d;    // ORA $4400
-        3: data = 8'h00;    // 
-        4: data = 8'h44;    // 
-        5: data = 8'h85;    // STA $99
-        6: data = 8'h99;    // 
+        0: data = 8'ha9;    // LDA #$42
+        1: data = 8'h42;    // 
+        2: data = 8'h29;    // AND #$84
+        3: data = 8'h84;    // 
+        4: data = 8'h85;    // STA $99
+        5: data = 8'h99;    // 
 
-        16'h4400: data = 8'hc0;
         16'hFFFC: data = 8'h00;
         16'hFFFD: data = 8'h00;
         default: data = 8'h00;
@@ -73,12 +71,12 @@ begin
     // Load timestamps are at the end of phi2 (falling edge of clk2)
     // Store timestamps are at the begin of phi2 (rising edge of clk2)
 
-    // ORA #$84 - N should set, Z should clear.
-    `ASSERT_AT(16'h24, cpu.control0.flags == 8'h80);
+    // AND #$84 - N should set, Z should clear.
+    `ASSERT_AT(16'h1c, cpu.control0.flags == 8'h02);
     // STA $99
-    `ASSERT_AT(16'h2f, addr == 16'h0099);
-    `ASSERT_AT(16'h2f, odata == 8'hc3);
-    `ASSERT_AT(16'h2f, rw == 0);
+    `ASSERT_AT(16'h27, addr == 16'h0099);
+    `ASSERT_AT(16'h27, odata == 8'h00);
+    `ASSERT_AT(16'h27, rw == 0);
 
 end
 

@@ -22,7 +22,7 @@ reg [7:0] data;
 always @(rd or address)
 begin
     case (address)
-        0: data = 8'ha0;    // LDY #$80
+        0: data = 8'ha0;    // LDY #$81
         1: data = 8'h81;    // 
         2: data = 8'h19;    // ORA $4400,X
         3: data = 8'h80;    // 
