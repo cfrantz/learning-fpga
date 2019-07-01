@@ -83,15 +83,33 @@ def verilog_test(
         srcs,
         deps = []):
     iverilog_compile(
-            name = name + "_dsn",
-            srcs = srcs,
-            deps = deps,
-            defines = [
-                "DIE_ON_ASSERT",
-            ],
+        name = name + "_dsn",
+        srcs = srcs,
+        deps = deps,
+        defines = [
+            "DIE_ON_ASSERT",
+        ],
+    )
+    iverilog_compile(
+        name = name + "_nodie",
+        srcs = srcs,
+        deps = deps,
+        defines = [],
+    )
+    native.genrule(
+        name = name + "_vcd",
+        srcs = [name + "_nodie.dsn"],
+        outs = [srcs[0] + "cd"],
+        cmd = """
+            FILE="$<"
+            DIR="$${FILE%%genfiles/*}genfiles"
+            INFILE="$${FILE##*genfiles/}"
+            cd "$$DIR"
+            vvp -n "$$INFILE"
+        """,
     )
     vvp_test(
-            name = name,
-            srcs = [name + "_dsn.dsn"],
+        name = name,
+        srcs = [name + "_dsn.dsn"],
     )
 

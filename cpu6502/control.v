@@ -202,7 +202,7 @@ begin
             ALU_OR,
             ALU_AND,
             ALU_EOR:
-                {flags[FLAG_N], flags[FLAG_V]} <= {alu_n, alu_z};
+                {flags[FLAG_N], flags[FLAG_Z]} <= {alu_n, alu_z};
             ALU_SHL,
             ALU_SHR:
                 {flags[FLAG_N], flags[FLAG_Z], flags[FLAG_C]}
@@ -414,7 +414,7 @@ begin
                             rw <= 0;
                             state <= FETCH_I;
                         end
-                        3'b100:     // LDY
+                        3'b101:     // LDY
                         begin
                             wrreg <= REG_Y;
                             rlatch <= 1;
