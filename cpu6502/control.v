@@ -204,7 +204,8 @@ begin
             ALU_EOR:
                 {flags[FLAG_N], flags[FLAG_Z]} <= {alu_n, alu_z};
             ALU_SHL,
-            ALU_SHR:
+            ALU_SHR,
+            ALU_CMP:
                 {flags[FLAG_N], flags[FLAG_Z], flags[FLAG_C]}
                     <= {alu_n, alu_z, alu_c};
             ALU_ADC,
@@ -327,11 +328,21 @@ begin
         IMPLIED:
         begin
             case(full_opcode)
+                8'h18,  // CLC
+                8'h38:  // SEC
+                    flags[FLAG_C] <= full_opcode[5];
+                8'h58,  // CLI
+                8'h78:  // SEI
+                    flags[FLAG_I] <= full_opcode[5];
+                8'hB8:  // CLV
+                    flags[FLAG_V] <= 0;
+                8'hD8,  // CLD
+                8'hF8:  // SED
+                    flags[FLAG_D] <= full_opcode[5];
                 8'hEA:  // NOP
-                    state <= FETCH_I;
-                default:
-                    state <= FETCH_I;
+                    ;
             endcase
+            state <= FETCH_I;
         end
 
         IMMEDIATE,      // Fetch immediate operand and alu op
@@ -359,10 +370,12 @@ begin
                             rdreg2 <= REG_DB;
                             wrreg <= REG_A;
                             rsel <= RSEL_ALU;
-                            alu_cin <= flags[FLAG_C];
-                            alu_op <= opcode == 3'b110 ? 3'b111 : opcode;
+                            // CMP is a subtract, but carry_in=1 and we don't
+                            // keep the result.
+                            alu_op <=  opcode;
+                            alu_cin <= opcode == 3'b110 ? 1 : flags[FLAG_C];
+                            regwren <= opcode == 3'b110 ? 0 : 1;
                             flatch <= 1;
-                            regwren <= 1;
                         end
                         3'b100:  // STA
                         begin

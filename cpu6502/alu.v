@@ -32,9 +32,10 @@ begin
             {c_out, result} <= {a, c_in};
         ALU_SHR:
             {result, c_out} <= {c_in, a};
+        ALU_CMP,
         ALU_SBC:
         begin
-            {c_out, result} <= {1'b0, a} - {1'b0, b} - {8'b0, ~c_in};
+            {c_out, result} <= {1'b0, a} + {1'b0, ~b} + {8'b0, c_in};
             v_out <= ~(a[7] ^ b[7]) & (a[7] ^ result[7]);
         end
     endcase

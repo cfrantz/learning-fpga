@@ -83,3 +83,33 @@ verilog_test(
     deps = [ "//cpu6502" ],
 )
 
+verilog_test(
+    name = "sbc_nvflag_test",
+    srcs = [ "sbc_nvflag_test.v" ],
+    deps = [ "//cpu6502" ],
+)
+verilog_test(
+    name = "sbc_cflag_test",
+    srcs = [ "sbc_cflag_test.v" ],
+    deps = [ "//cpu6502" ],
+)
+
+verilog_test(
+    name = "cmp_lt_test",
+    srcs = [ "cmp_lt_test.v" ],
+    deps = [ "//cpu6502" ],
+)
+verilog_test(
+    name = "cmp_eq_test",
+    srcs = [ "cmp_eq_test.v" ],
+    deps = [ "//cpu6502" ],
+)
+verilog_test(
+    name = "cmp_gt_test",
+    srcs = [ "cmp_gt_test.v" ],
+    deps = [ "//cpu6502" ],
+)
+
+
+
+
