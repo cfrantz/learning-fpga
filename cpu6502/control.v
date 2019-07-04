@@ -469,10 +469,10 @@ begin
                     // Operate on register T, store result back in T.
                     // Update flags based on alu result.
                     rdreg1 <= REG_T;
+                    rdreg2 <= REG_ZERO;
                     wrreg <= REG_T;
                     rsel <= RSEL_ALU;
                     regwren <= 1;
-                    flatch <= 1;
                     case(opcode)
                         3'b000,  // ASL
                         3'b001,  // ROL
@@ -483,13 +483,15 @@ begin
                             alu_cin <= opcode[0] ? flags[FLAG_C] : 0;
                             // shift direction based on opcode.
                             alu_op <= opcode[1] ? ALU_SHR : ALU_SHL;
+                            flatch <= 1;
                         end
 
                         3'b110,  // DEC
                         3'b111:  // INC
                         begin
-                            alu_cin <= 0;
                             alu_op <= opcode[0] ? ALU_ADC : ALU_SBC;
+                            alu_cin <= opcode[0] ? 1 : 0;
+                            rlatch <= 1;
                         end
                     endcase
                 end
