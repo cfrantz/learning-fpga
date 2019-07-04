@@ -328,6 +328,22 @@ begin
         IMPLIED:
         begin
             case(full_opcode)
+                8'h0A,  // ASL
+                8'h2A,  // ROL
+                8'h4A,  // LSR
+                8'h6A:  // ROR
+                begin
+                    rdreg1 <= REG_A;
+                    wrreg <= REG_A;
+                    rsel <= RSEL_ALU;
+                    regwren <= 1;
+                    flatch <= 1;
+                    // Carry in depeding on rotate or shift.
+                    alu_cin <= opcode[0] ? flags[FLAG_C] : 0;
+                    // shift direction based on opcode.
+                    alu_op <= opcode[1] ? ALU_SHR : ALU_SHL;
+                end
+
                 8'h18,  // CLC
                 8'h38:  // SEC
                     flags[FLAG_C] <= full_opcode[5];
@@ -466,8 +482,9 @@ begin
                             // Carry in depeding on rotate or shift.
                             alu_cin <= opcode[0] ? flags[FLAG_C] : 0;
                             // shift direction based on opcode.
-                            alu_op <= opcode[1] ? ALU_SHL : ALU_SHR;
+                            alu_op <= opcode[1] ? ALU_SHR : ALU_SHL;
                         end
+
                         3'b110,  // DEC
                         3'b111:  // INC
                         begin

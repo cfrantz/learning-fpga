@@ -5,6 +5,7 @@ load("//rules:verilog.bzl", "verilog_library",
 
 # Tests for instructions which use the ALU
 
+######################################################################
 # The ORA tests exercise all of the address modes
 # The logic for ORA, AND, EOR, ADC, SBC and CMP all use the same states,
 # so the tests for the other operations only have to test op-result and flags.
@@ -50,6 +51,8 @@ verilog_test(
 )
 
 
+######################################################################
+# Tests for AND
 verilog_test(
     name = "and_nflag_test",
     srcs = [ "and_nflag_test.v" ],
@@ -61,6 +64,8 @@ verilog_test(
     deps = [ "//cpu6502" ],
 )
 
+######################################################################
+# Tests for EOR
 verilog_test(
     name = "eor_nflag_test",
     srcs = [ "eor_nflag_test.v" ],
@@ -72,6 +77,8 @@ verilog_test(
     deps = [ "//cpu6502" ],
 )
 
+######################################################################
+# Tests for ADC
 verilog_test(
     name = "adc_zcflag_test",
     srcs = [ "adc_zcflag_test.v" ],
@@ -83,6 +90,8 @@ verilog_test(
     deps = [ "//cpu6502" ],
 )
 
+######################################################################
+# Tests for SBC
 verilog_test(
     name = "sbc_nvflag_test",
     srcs = [ "sbc_nvflag_test.v" ],
@@ -94,6 +103,8 @@ verilog_test(
     deps = [ "//cpu6502" ],
 )
 
+######################################################################
+# Tests for CMP
 verilog_test(
     name = "cmp_lt_test",
     srcs = [ "cmp_lt_test.v" ],
@@ -110,6 +121,27 @@ verilog_test(
     deps = [ "//cpu6502" ],
 )
 
-
+######################################################################
+# Tests for LSR A
+verilog_test(
+    name = "lsra_test",
+    srcs = [ "lsra_test.v" ],
+    deps = [ "//cpu6502" ],
+)
+verilog_test(
+    name = "rora_test",
+    srcs = [ "rora_test.v" ],
+    deps = [ "//cpu6502" ],
+)
+verilog_test(
+    name = "asla_test",
+    srcs = [ "asla_test.v" ],
+    deps = [ "//cpu6502" ],
+)
+verilog_test(
+    name = "rola_test",
+    srcs = [ "rola_test.v" ],
+    deps = [ "//cpu6502" ],
+)
 
 
