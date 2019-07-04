@@ -44,12 +44,6 @@ localparam FLAG_D = 3;
 localparam FLAG_V = 6;
 localparam FLAG_N = 7;
 
-/*
-reg [2:0] opcode;
-reg [2:0] amode;
-reg [1:0] itype;
-assign full_opcode = {opcode, amode, itype};
-*/
 reg [7:0] full_opcode;
 wire [2:0] opcode;
 wire [2:0] amode;
@@ -57,14 +51,18 @@ wire [1:0] itype;
 assign opcode = full_opcode[7:5];
 assign amode = full_opcode[4:2];
 assign itype = full_opcode[1:0];
+reg [15:0] next_pc = 0; // next PC for branch/jump instructions.
 
 reg [15:0] cycle = 0;   // cycle counter
 reg rsel = 0;           // rdata mux
-reg osel = 0;           // odata mux
+reg [1:0] osel = 0;     // odata mux
 reg acarry = 0;         // alu carry from last address computation
 
 localparam RSEL_IDATA = 0;
 localparam RSEL_ALU = 1;
+localparam OSEL_Z = 0;
+localparam OSEL_REG = 1;
+localparam OSEL_FLAGS = 2;
 
 localparam RESET_0 =   8'h0;
 localparam RESET_1 =   8'h1;
@@ -78,6 +76,12 @@ parameter RELATIVE_0   = 8'h10;
 parameter JSR_0        = 8'h20;
 
 parameter IMPLIED   = 8'h70;
+parameter PUSH_0    = 8'h72;
+parameter PUSH_1    = 8'h73;
+parameter PULL_0    = 8'h78;
+parameter PULL_1    = 8'h79;
+parameter PULL_2    = 8'h7a;
+
 parameter IMMEDIATE = 8'h80;
 parameter ZP_ADDR_0   = 8'h90;
 parameter ZP_ADDR_1   = 8'h91;
@@ -121,7 +125,7 @@ end
 always @(posedge clk1)
 begin
     incr_pc <= 0;
-    osel <= 0;
+    osel <= OSEL_Z;
     flatch <= 0;
     rlatch <= 0;
     if (reset)
@@ -174,6 +178,9 @@ begin
             IX_ADDR_3,
             IY_ADDR_2:
                 addr <= {8'b0, reg1 + 8'h01};
+            PUSH_0,         // Stack operations
+            PULL_1:
+                addr <= {8'b00000001, reg1};
         endcase
     end
 end
@@ -218,6 +225,9 @@ begin
         IY_ADDR_1, // Setup reg_t for next address phase
         IY_ADDR_2:
             rdreg1 <= REG_T;
+        RELATIVE_2:     // If we don't need to work on PCH, skip to fetch.
+            if (alu_c == reg2[7])
+                state <= FETCH_I;
     endcase
 
 end
@@ -251,38 +261,48 @@ begin
         FETCH_I: // Instruction fetch and decode
         begin
             case (idata)
-                8'h0A,  // ASL A
-                8'h2A,  // ROL A
-                8'h4A,  // LSR A
-                8'h6A,  // ROR A
-                8'h8A,  // TXA
-                8'h9A,  // TXS
-                8'hAA,  // TAX
-                8'hBA,  // TSX
-                8'hCA,  // DEX
-                8'hEA,  // NOP
-                8'h08,  // PHP
-                8'h28,  // PLP
-                8'h48,  // PHA
-                8'h68,  // PLA
-                8'h88,  // DEY
-                8'hA8,  // TAY
-                8'hC8,  // INY
-                8'hE8,  // INX
-                8'h18,  // CLC
-                8'h38,  // SEC
-                8'h58,  // CLI
-                8'h78,  // SEI
-                8'h88,  // TYA
-                8'hB8,  // CLV
-                8'hD8,  // CLD
-                8'hF8,  // SED
+                8'h0A,  // ASL A;
+                8'h2A,  // ROL A;
+                8'h4A,  // LSR A;
+                8'h6A,  // ROR A;
+                8'h8A,  // TXA;
+                8'h9A,  // TXS;
+                8'hAA,  // TAX;
+                8'hBA,  // TSX;
+                8'hCA,  // DEX;
+                8'hEA,  // NOP;
+                8'h88,  // DEY;
+                8'hA8,  // TAY;
+                8'hC8,  // INY;
+                8'hE8,  // INX;
+                8'h18,  // CLC;
+                8'h38,  // SEC;
+                8'h58,  // CLI;
+                8'h78,  // SEI;
+                8'h88,  // TYA;
+                8'hB8,  // CLV;
+                8'hD8,  // CLD;
+                8'hF8,  // SED;
                 8'h40,  // RTI
                 8'h60:  // RTS
                 begin
                     full_opcode <= idata;
                     state <= IMPLIED;
                 end
+
+                8'h08,  // PHP
+                8'h48:  // PHA
+                begin
+                    full_opcode <= idata;
+                    state <= PUSH_0;
+                end
+                8'h28,  // PLP
+                8'h68:  // PLA
+                begin
+                    full_opcode <= idata;
+                    state <= PULL_0;
+                end
+
                 8'h10,  // BPL
                 8'h30,  // BMI
                 8'h50,  // BVC
@@ -357,6 +377,50 @@ begin
                     flags[FLAG_D] <= full_opcode[5];
                 8'hEA:  // NOP
                     ;
+                8'hAA,  // TAX
+                8'h8A,  // TXA
+                8'h9A,  // TXS
+                8'hBA,  // TSX
+                8'hA8,  // TAY
+                8'h98:  // TYA
+                begin
+                    rdreg1 <= full_opcode == 8'hAA ? REG_A :
+                              full_opcode == 8'hA8 ? REG_A :
+                              full_opcode == 8'h8A ? REG_X :
+                              full_opcode == 8'h9A ? REG_X :
+                              full_opcode == 8'hBA ? REG_SP :
+                              full_opcode == 8'h98 ? REG_Y : REG_A;
+                    rdreg2 <= REG_ZERO;
+                    wrreg <= full_opcode == 8'hAA ? REG_X :
+                             full_opcode == 8'hA8 ? REG_Y :
+                             full_opcode == 8'h8A ? REG_A :
+                             full_opcode == 8'h9A ? REG_SP :
+                             full_opcode == 8'hBA ? REG_X :
+                             full_opcode == 8'h98 ? REG_A : REG_A;
+                    rsel <= RSEL_ALU;
+                    regwren <= 1;
+                    alu_cin <= 0;
+                    alu_op <= ALU_ADC;
+                end
+
+                8'hC8,  // INY
+                8'hE8,  // INX
+                8'h88,  // DEY
+                8'hCA:  // DEX
+                begin
+                    rdreg1 = full_opcode == 8'hC8 ? REG_X :
+                           full_opcode == 8'hE8 ? REG_X :
+                           full_opcode == 8'h88 ? REG_Y :
+                           full_opcode == 8'hCA ? REG_Y : REG_Y;
+                    rdreg2 <= REG_ZERO;
+                    wrreg  <= rdreg1;
+                    rsel <= RSEL_ALU;
+                    regwren <= 1;
+                    alu_cin = full_opcode == 8'hC8 || full_opcode == 8'hE8;
+                    alu_op <= alu_cin ? ALU_ADC : ALU_SBC;
+                    rlatch <= 1;
+                end
+
             endcase
             state <= FETCH_I;
         end
@@ -396,7 +460,7 @@ begin
                         3'b100:  // STA
                         begin
                             rdreg1 <= REG_A;
-                            osel <= 1;
+                            osel <= OSEL_REG;
                             rw <= 0;
                         end
                         3'b101:  // LDA
@@ -417,7 +481,7 @@ begin
                         3'b100:     // STX
                         begin
                             rdreg1 <= REG_X;
-                            osel <= 1;
+                            osel <= OSEL_REG;
                             rw <= 0;
                             state <= FETCH_I;
                         end
@@ -439,7 +503,7 @@ begin
                         3'b100:     // STY
                         begin
                             rdreg1 <= REG_Y;
-                            osel <= 1;
+                            osel <= OSEL_REG;
                             rw <= 0;
                             state <= FETCH_I;
                         end
@@ -450,6 +514,18 @@ begin
                             rsel <= RSEL_IDATA;
                             regwren <= 1;
                             state <= FETCH_I;
+                        end
+                        3'b110,     // CPX
+                        3'b111:     // CPX
+                        begin
+                            rdreg1 <= opcode[0] ? REG_X : REG_Y;
+                            rdreg2 <= REG_DB;
+                            // CMP is a subtract with carry_in=1 and we don't
+                            // keep the result.
+                            alu_op <=  ALU_CMP;
+                            alu_cin <= 1;
+                            regwren <= 0;
+                            flatch <= 1;
                         end
                         default:
                         begin
@@ -506,7 +582,7 @@ begin
                 begin
                     // Write T back to memory.
                     rdreg1 <= REG_T;
-                    osel <= 1;
+                    osel <= OSEL_REG;
                     rw <= 0;
                 end
             endcase
@@ -621,6 +697,91 @@ begin
                   : ((acarry) ? 1 : 2));
         end
 
+        PUSH_0:     // Store register value to memory
+        begin
+            rdreg1 <= REG_A;
+            rdreg2 <= REG_SP;
+            osel <= full_opcode[6] ? OSEL_REG : OSEL_FLAGS;
+            rw <= 0;
+            state <= state + 1;
+        end
+
+        PUSH_1:     // Decrement SP
+        begin
+            rdreg1 <= REG_SP;
+            rdreg2 <= REG_ZERO;
+            wrreg  <= REG_SP;
+            rsel <= RSEL_ALU;
+            regwren <= 1;
+            alu_cin = 0;
+            alu_op <= ALU_SBC;
+            rlatch <= 1;
+            state <= FETCH_I;
+        end
+        PULL_0:     // Increment SP
+        begin
+            rdreg1 <= REG_SP;
+            rdreg2 <= REG_ZERO;
+            wrreg  <= REG_SP;
+            rsel <= RSEL_ALU;
+            regwren <= 1;
+            alu_cin = 1;
+            alu_op <= ALU_ADC;
+            state <= state + 1;
+        end
+        PULL_1:     // Store memory value to register
+        begin
+            if (full_opcode == 8'h28)
+            begin
+                // PLP
+                flags <= idata;
+            end
+            else
+            begin
+                wrreg <= REG_A;
+                rsel <= RSEL_IDATA;
+                regwren <= 1;
+            end
+            state <= state + 1;
+        end
+        PULL_2:     // Do nothing state
+            state <= FETCH_I;
+
+        RELATIVE_0:     // Take a branch or not. Capture displacement into T.
+        begin
+            state <=
+              (opcode[0] == flags[opcode[2:1] == 2'b11 ? FLAG_Z :
+      `                           opcode[2:1] == 2'b10 ? FLAG_C :
+      `                           opcode[2:1] == 2'b01 ? FLAG_V : FLAG_N])
+                ? RELATIVE_1 : FETCH_I;
+            rdreg1 <= REG_T;
+            wrreg <= REG_T;
+            rsel <= RSEL_IDATA;
+            regwren <= 1;
+            incr_pc <= 1;
+        end
+        RELATIVE_1:
+        begin
+            rdreg1 <= REG_PCL;
+            rdreg2 <= REG_T;
+            wrreg  <= REG_PCL;
+            rsel <= RSEL_ALU;
+            regwren <= 1;
+            alu_cin <= 0;
+            alu_op <= ALU_ADC;
+            state <= state + 1;
+        end
+        RELATIVE_2:
+        begin
+            rdreg1 <= REG_PCH;
+            rdreg2 <= REG_ZERO;
+            wrreg  <= REG_PCH;
+            rsel <= RSEL_ALU;
+            regwren <= 1;
+            alu_cin <= alu_c;
+            alu_op <= reg2[7] ? ALU_SBC : ALU_ADC;
+            state <= FETCH_I;
+        end
 
 
     endcase
