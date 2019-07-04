@@ -4,7 +4,7 @@
 `else
 `define DIE
 `endif
-`define VCDOUT {`__FILE__, ".vcd"}
+`define VCDOUT {`__FILE__, "cd"}
 `define ASSERT_AT(count_, cond_) \
     if (count_ == counter && (cond_) != 1) \
     begin \
@@ -126,7 +126,7 @@ begin
 
     // LDA ($02),y
     `ASSERT_AT(16'ha4, addr == 16'hffa9);
-    `ASSERT_AT(16'ha4, idata == 8'hab);
+    `ASSERT_AT(16'ha4, idata == 8'haa);
 end
 
 endmodule

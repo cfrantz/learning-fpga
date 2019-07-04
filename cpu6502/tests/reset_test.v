@@ -4,7 +4,7 @@
 `else
 `define DIE
 `endif
-`define VCDOUT {`__FILE__, ".vcd"}
+`define VCDOUT {`__FILE__, "cd"}
 `define ASSERT_AT(count_, cond_) \
     if (count_ == counter && (cond_) != 1) \
     begin \
