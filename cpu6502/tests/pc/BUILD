@@ -21,7 +21,14 @@ verilog_test(
     deps = [ "//cpu6502" ],
 )
 
+verilog_test(
+    name = "rts_test",
+    srcs = [ "rts_test.v" ],
+    deps = [ "//cpu6502" ],
+)
 
-
-
-
+verilog_test(
+    name = "rti_test",
+    srcs = [ "rti_test.v" ],
+    deps = [ "//cpu6502" ],
+)

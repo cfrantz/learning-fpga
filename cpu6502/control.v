@@ -87,6 +87,20 @@ parameter JSR_2        = 8'h22;
 parameter JSR_3        = 8'h23;
 parameter JSR_4        = 8'h24;
 
+// The RTS state numbers are arranges so the low bits will be the same
+// for RTI states.
+parameter RTS_1        = 8'h31;
+parameter RTS_2        = 8'h32;
+parameter RTS_3        = 8'h33;
+parameter RTS_4        = 8'h34;
+parameter RTS_5        = 8'h35;
+
+parameter RTI_0        = 8'h38;
+parameter RTI_1        = 8'h39;
+parameter RTI_2        = 8'h3a;
+parameter RTI_3        = 8'h3b;
+parameter RTI_4        = 8'h3c;
+
 parameter IMPLIED   = 8'h70;
 parameter PUSH_0    = 8'h72;
 parameter PUSH_1    = 8'h73;
@@ -210,6 +224,11 @@ begin
                 addr <= {8'b0, reg1 + 8'h01};
             JSR_1,          // jsr push PCH
             JSR_2,          // jsr push PCL
+            RTS_2,          // rts pull pcl
+            RTS_4,          // rts pull pch
+            RTI_0,          // rti pull flags
+            RTI_2,          // rti pull pcl
+            RTI_4,          // rti pull pch
             PUSH_0,         // Stack operations
             PULL_1:
             begin
@@ -329,9 +348,7 @@ begin
                 8'h88,  // TYA;
                 8'hB8,  // CLV;
                 8'hD8,  // CLD;
-                8'hF8,  // SED;
-                8'h40,  // RTI
-                8'h60:  // RTS
+                8'hF8:  // SED;
                 begin
                     full_opcode <= idata;
                     state <= IMPLIED;
@@ -376,6 +393,23 @@ begin
                 begin
                     full_opcode <= idata;
                     state <= JMP_ABSI_0;
+                end
+                8'h40:  // RTI - prep SP to pull flags
+                begin
+                    full_opcode <= idata;
+                    rdreg1 <= REG_SP;
+                    rdreg2 <= REG_ZERO;
+                    wrreg  <= REG_SP;
+                    rsel <= RSEL_ALU;
+                    regwren <= 1;
+                    alu_cin = 1;
+                    alu_op <= ALU_ADC;
+                    state <= RTI_0;
+                end
+                8'h60:  // RTS
+                begin
+                    full_opcode <= idata;
+                    state <= RTS_1;
                 end
 
             default:
@@ -627,7 +661,6 @@ begin
                             alu_op <= opcode[1] ? ALU_SHR : ALU_SHL;
                             flatch <= FL_ALU;
                         end
-
                         3'b110,  // DEC
                         3'b111:  // INC
                         begin
@@ -801,6 +834,10 @@ begin
             alu_op <= ALU_SBC;
             state <= FETCH_I;
         end
+        RTS_1,
+        RTS_3,
+        RTI_1,
+        RTI_3,
         PULL_0:     // Increment SP
         begin
             rdreg1 <= REG_SP;
@@ -812,9 +849,10 @@ begin
             alu_op <= ALU_ADC;
             state <= state + 1;
         end
+        RTI_0,
         PULL_1:     // Store memory value to register
         begin
-            if (full_opcode == 8'h28)
+            if (full_opcode == 8'h28 || full_opcode == 8'h40)
             begin
                 // PLP
                 flags <= idata;
@@ -888,6 +926,7 @@ begin
             alu_op <= ALU_SBC;
             state <= state + 1;
         end
+
         JSR_2: // Drive PCL to odata
         begin
             rdreg1 <= REG_PCL;
@@ -912,6 +951,25 @@ begin
             rsel <= RSEL_IDATA;
             regwren <= 1;
             tpcl <= 1;
+            state <= FETCH_I;
+        end
+
+        RTS_2,
+        RTS_4,
+        RTI_2, // Get pcl from idata
+        RTI_4: // Get pch from idata
+        begin
+            wrreg <= state[1] ? REG_PCL : REG_PCH;
+            rsel <= RSEL_IDATA;
+            regwren <= 1;
+            if (state == RTI_4)
+                state <= FETCH_I;
+            else
+                state <= state + 1;
+        end
+        RTS_5: // increment the PC and fetch next instruction.
+        begin
+            incr_pc <= 1;
             state <= FETCH_I;
         end
     endcase
