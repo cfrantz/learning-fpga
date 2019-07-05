@@ -64,17 +64,17 @@ reg acarry = 0;         // alu carry from last address computation
 
 localparam RSEL_IDATA = 0;
 localparam RSEL_ALU = 1;
-localparam OSEL_Z = 0;
-localparam OSEL_REG = 1;
-localparam OSEL_FLAGS = 2;
+localparam OSEL_Z =     2'b00;
+localparam OSEL_REG =   2'b01;
+localparam OSEL_FLAGS = 2'b10;
 
-localparam RESET_0 =   8'h0;
-localparam RESET_1 =   8'h1;
-localparam RESET_PCL = 8'h2;
-localparam RESET_PCH = 8'h3;
-localparam FETCH_I =   8'h4;
-localparam RMW_MODIFY =8'h5;
-localparam RMW_WRITE  =8'h6;
+localparam RESET_0 =    8'h0;
+localparam RESET_1 =    8'h1;
+localparam RESET_PCL =  8'h2;
+localparam RESET_PCH =  8'h3;
+localparam FETCH_I =    8'h4;
+localparam RMW_MODIFY = 8'h5;
+localparam RMW_WRITE  = 8'h6;
 
 parameter RELATIVE_0   = 8'h10;
 parameter RELATIVE_1   = 8'h11;
@@ -194,7 +194,8 @@ end
 assign rdata = rsel == RSEL_IDATA ? idata :
                rsel == RSEL_ALU ? alu_result : 8'bz;
 // Data driven to output comes from register file.
-assign odata = osel ? reg1 : 8'bz;
+assign odata = osel == OSEL_REG ? reg1 :
+               osel == OSEL_FLAGS ? flags : 8'bz;
 
 // Falling edge of clk2 is when registers get latched.
 always @(negedge clk2)
