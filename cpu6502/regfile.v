@@ -9,6 +9,7 @@ module regfile(
     input [3:0] wrsel,
     input [7:0] data,
     input [7:0] dbus,
+    input tpcl,
     input incr_pc,
     output [7:0] read1,
     output [7:0] read2,
@@ -39,7 +40,14 @@ end
 */
 
 always @(negedge wrenable)
-        register[wrsel] <= data;
+begin
+    register[wrsel] <= data;
+end
+
+always @(negedge tpcl)
+begin
+    register[REG_PCL] <= register[REG_T];
+end
 
 always @(posedge incr_pc)
     {register[REG_PCH], register[REG_PCL]} <=

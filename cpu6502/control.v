@@ -29,6 +29,7 @@ module control(
 
     output reg rw,
     output reg regwren,
+    output reg tpcl,
     output reg incr_pc);
 
 `include "cpu6502/alu.vh"
@@ -67,6 +68,7 @@ localparam RSEL_ALU = 1;
 localparam OSEL_Z =     2'b00;
 localparam OSEL_REG =   2'b01;
 localparam OSEL_FLAGS = 2'b10;
+localparam OSEL_PCH   = 2'b11;
 
 localparam RESET_0 =    8'h0;
 localparam RESET_1 =    8'h1;
@@ -80,6 +82,10 @@ parameter RELATIVE_0   = 8'h10;
 parameter RELATIVE_1   = 8'h11;
 parameter RELATIVE_2   = 8'h12;
 parameter JSR_0        = 8'h20;
+parameter JSR_1        = 8'h21;
+parameter JSR_2        = 8'h22;
+parameter JSR_3        = 8'h23;
+parameter JSR_4        = 8'h24;
 
 parameter IMPLIED   = 8'h70;
 parameter PUSH_0    = 8'h72;
@@ -101,6 +107,16 @@ parameter IX_ADDR_4   = 8'ha4;
 parameter ABS_ADDR_0  = 8'hb0;
 parameter ABS_ADDR_1  = 8'hb1;
 parameter ABS_ADDR_2  = 8'hb2;
+
+parameter JMP_ABS_0   = 8'hb4;
+parameter JMP_ABS_1   = 8'hb5;
+parameter JMP_ABS_2   = 8'hb6;
+
+parameter JMP_ABSI_0  = 8'hb8;
+parameter JMP_ABSI_1  = 8'hb9;
+parameter JMP_ABSI_2  = 8'hba;
+parameter JMP_ABSI_3  = 8'hbb;
+parameter JMP_ABSI_4  = 8'hbc;
 
 parameter IY_ADDR_0   = 8'hc0;
 parameter IY_ADDR_1   = 8'hc1;
@@ -164,18 +180,27 @@ begin
             ABSX_ADDR_1,    // Address of absaddr high byte
             ABSY_ADDR_0,    // Address of absaddr low byte
             ABSY_ADDR_1,    // Address of absaddr high byte
+            JMP_ABS_0,      // Address of jmp dest low byte
+            JMP_ABS_1,      // Address of jmp dest high byte
+            JMP_ABSI_0,     // Address of jmp ptr low byte
+            JMP_ABSI_1,     // Address of jmp ptr high byte
+            JSR_0,          // Subroutine low addr
+            JSR_4,          // Subroutine high addr
             IX_ADDR_0,      // ZP address
             IY_ADDR_0:      // ZP address
                 addr <= pc;
-            ZP_ADDR_1, // Address fetched in prior state
-            ZPX_ADDR_2: // Address computed in prior state
+            ZP_ADDR_1,      // Address fetched in prior state
+            ZPX_ADDR_2:     // Address computed in prior state
                 addr <= {8'b0, reg1};
             ABS_ADDR_2,
             ABSX_ADDR_3,
             ABSY_ADDR_3,
+            JMP_ABSI_2,
             IX_ADDR_4,
             IY_ADDR_4:
                 addr <= iaddr;
+            JMP_ABSI_3:     // Replicate page-cross fail in orig 6502.
+                addr <= {iaddr[15:8], iaddr[7:0]+8'h01};
 
             IX_ADDR_2,
             IY_ADDR_1:
@@ -183,9 +208,13 @@ begin
             IX_ADDR_3,
             IY_ADDR_2:
                 addr <= {8'b0, reg1 + 8'h01};
+            JSR_1,          // jsr push PCH
+            JSR_2,          // jsr push PCL
             PUSH_0,         // Stack operations
             PULL_1:
+            begin
                 addr <= {8'b00000001, reg1};
+            end
         endcase
     end
 end
@@ -195,13 +224,15 @@ assign rdata = rsel == RSEL_IDATA ? idata :
                rsel == RSEL_ALU ? alu_result : 8'bz;
 // Data driven to output comes from register file.
 assign odata = osel == OSEL_REG ? reg1 :
-               osel == OSEL_FLAGS ? flags : 8'bz;
+               osel == OSEL_FLAGS ? flags :
+               osel == OSEL_PCH ? pc[15:8] : 8'bz;
 
 // Falling edge of clk2 is when registers get latched.
 always @(negedge clk2)
 begin
     // Latch into register file.
     regwren <= 0;
+    tpcl <= 0;
     rw <= 1;
     acarry <= alu_c;
     case(flatch)
@@ -335,6 +366,16 @@ begin
                 begin
                     full_opcode <= idata;
                     state <= JSR_0;
+                end
+                8'h4C:  // JMP abs
+                begin
+                    full_opcode <= idata;
+                    state <= JMP_ABS_0;
+                end
+                8'h6C:  // JMP (abs)
+                begin
+                    full_opcode <= idata;
+                    state <= JMP_ABSI_0;
                 end
 
             default:
@@ -522,6 +563,7 @@ begin
                             rdreg2 <= REG_DB;
                             alu_op <=  ALU_AND;
                             flatch <= FL_BIT;
+                            state <= FETCH_I;
                         end
                         3'b100:     // STY
                         begin
@@ -549,6 +591,7 @@ begin
                             alu_cin <= 1;
                             regwren <= 0;
                             flatch <= FL_ALU;
+                            state <= FETCH_I;
                         end
                         default:
                         begin
@@ -615,15 +658,34 @@ begin
         ZP_ADDR_0,  // Fetch zero page address
         ZPX_ADDR_0, // Fetch zero page address
         ABS_ADDR_0, // Fetch abs addr low byte
-        ABS_ADDR_1: // Fetch abs addr high byte
+        ABS_ADDR_1, // Fetch abs addr high byte
+        JMP_ABSI_0, // Fetch jmp ptr dest low
+        JMP_ABSI_1: // Fetch jmp ptr dest high
         begin
             wrreg <= state[0] ? REG_IH: REG_IL;
             rdreg1 <= REG_IL;
             rdreg2 <= REG_IH;
             rsel <= RSEL_IDATA;
+            alu_op <= ALU_ADC;
+            alu_cin <= 0;
             regwren <= 1;
             state <= state + 1;
             incr_pc <= 1;
+        end
+
+        JMP_ABS_0,  // Fetch jmp dest low
+        JMP_ABS_1,  // Fetch jmp dest high
+        JMP_ABSI_2, // Transfer IL -> PCL
+        JMP_ABSI_3: // Transfer IH -> PCH
+        begin
+            // Fetch into T and PCH.  On the high-byte state, we'll latch
+            // T into PCL at the end of clk2, creating a complete new PC.
+            wrreg <= state[0] ? REG_PCH: REG_T;
+            rsel <= RSEL_IDATA;
+            regwren <= 1;
+            tpcl <= state[0];
+            incr_pc <= ~state[0];
+            state <= state[0] ? FETCH_I : state + 1;
         end
 
         ZPX_ADDR_1: // Add Xreg + IL
@@ -715,9 +777,8 @@ begin
             regwren <= 1;
             // In the _1 state, advance to the next state.
             // In the _2 state, stall 1 state if there was a carry.
-            state <= state + (state[0]
-                  ? 1
-                  : ((acarry) ? 1 : 2));
+            state <= state + (state[0] ? 1
+                                       : ((acarry) ? 1 : 2));
         end
 
         PUSH_0:     // Store register value to memory
@@ -805,7 +866,54 @@ begin
             state <= FETCH_I;
         end
 
-
+        JSR_0: // Drive SP for next instr phase, latch idata into T
+        begin
+            rdreg1 <= REG_SP;
+            wrreg <= REG_T;
+            rsel <= RSEL_IDATA;
+            regwren <= 1;
+            incr_pc <= 1;
+            state <= state + 1;
+        end
+        JSR_1: // Drive PCH to odata, sp--
+        begin
+            osel <= OSEL_PCH;
+            rw <= 0;
+            rdreg1 <= REG_SP;
+            rdreg2 <= REG_ZERO;
+            wrreg  <= REG_SP;
+            rsel <= RSEL_ALU;
+            regwren <= 1;
+            alu_cin = 0;
+            alu_op <= ALU_SBC;
+            state <= state + 1;
+        end
+        JSR_2: // Drive PCL to odata
+        begin
+            rdreg1 <= REG_PCL;
+            osel <= OSEL_REG;
+            rw <= 0;
+            state <= state + 1;
+        end
+        JSR_3: // sp--
+        begin
+            rdreg1 <= REG_SP;
+            rdreg2 <= REG_ZERO;
+            wrreg  <= REG_SP;
+            rsel <= RSEL_ALU;
+            regwren <= 1;
+            alu_cin = 0;
+            alu_op <= ALU_SBC;
+            state <= state + 1;
+        end
+        JSR_4: // Get PCH from idata, letch T->PCL.
+        begin
+            wrreg <= REG_PCH;
+            rsel <= RSEL_IDATA;
+            regwren <= 1;
+            tpcl <= 1;
+            state <= FETCH_I;
+        end
     endcase
 end
 end

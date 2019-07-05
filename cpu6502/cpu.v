@@ -28,7 +28,7 @@ wire [3:0] rdreg1, rdreg2, wrreg;
 wire [7:0] regout1, regout2, regdata, alu_out;
 wire alu_cin, alu_c, alu_z, alu_v, alu_n;
 wire [2:0] alu_op;
-wire regwren, incr_pc;
+wire regwren, tpcl, incr_pc;
 wire [15:0] pc, iaddr;
 
 regfile reg0(
@@ -40,6 +40,7 @@ regfile reg0(
     .wrsel(wrreg),
     .data(regdata),
     .dbus(idata),
+    .tpcl(tpcl),
     .incr_pc(incr_pc),
     .read1(regout1),
     .read2(regout2),
@@ -79,5 +80,6 @@ control control0(
     .wrreg(wrreg),
     .rw(rw),
     .regwren(regwren),
+    .tpcl(tpcl),
     .incr_pc(incr_pc));
 endmodule

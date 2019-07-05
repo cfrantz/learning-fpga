@@ -9,5 +9,8 @@ parameter REG_T =   4'h7;
 parameter REG_IL =  4'h8;
 parameter REG_IH =  4'h9;
 
+// A magic value to load PC from the I register.
+parameter REG_PCI = 4'hf;
+// A magic value to make the databus appear on reg output ports.
 parameter REG_DB =  4'hf;
 parameter REG_NUM =  16;
