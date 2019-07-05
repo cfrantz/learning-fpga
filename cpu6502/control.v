@@ -35,14 +35,18 @@ module control(
 `include "cpu6502/regfile.vh"
 reg [7:0] state = 0;   // current cpu state
 reg [7:0] flags = 0;   // cpu flags
-reg flatch; // whether to latch alu flags into cpu flags.
-reg rlatch; // whether to latch flags based on rsel data
 localparam FLAG_C = 0;
 localparam FLAG_Z = 1;
 localparam FLAG_I = 2;
 localparam FLAG_D = 3;
 localparam FLAG_V = 6;
 localparam FLAG_N = 7;
+
+reg [1:0] flatch = 0; // What to latch into flags
+localparam FL_NONE  = 2'b00;
+localparam FL_ALU   = 2'b01;
+localparam FL_RDATA = 2'b10;
+localparam FL_BIT   = 2'b11;
 
 reg [7:0] full_opcode;
 wire [2:0] opcode;
@@ -73,6 +77,8 @@ localparam RMW_MODIFY =8'h5;
 localparam RMW_WRITE  =8'h6;
 
 parameter RELATIVE_0   = 8'h10;
+parameter RELATIVE_1   = 8'h11;
+parameter RELATIVE_2   = 8'h12;
 parameter JSR_0        = 8'h20;
 
 parameter IMPLIED   = 8'h70;
@@ -126,8 +132,7 @@ always @(posedge clk1)
 begin
     incr_pc <= 0;
     osel <= OSEL_Z;
-    flatch <= 0;
-    rlatch <= 0;
+    flatch <= FL_NONE;
     if (reset)
     begin
         //state <= RESET_0;
@@ -198,29 +203,39 @@ begin
     regwren <= 0;
     rw <= 1;
     acarry <= alu_c;
-    if (rlatch)
-    begin
-        flags[FLAG_N] <= rdata[7];
-        flags[FLAG_Z] <= ~|rdata;
-    end
-    if (flatch)
-    begin
-        case (alu_op)
-            ALU_OR,
-            ALU_AND,
-            ALU_EOR:
-                {flags[FLAG_N], flags[FLAG_Z]} <= {alu_n, alu_z};
-            ALU_SHL,
-            ALU_SHR,
-            ALU_CMP:
-                {flags[FLAG_N], flags[FLAG_Z], flags[FLAG_C]}
-                    <= {alu_n, alu_z, alu_c};
-            ALU_ADC,
-            ALU_SBC:
-                {flags[FLAG_N], flags[FLAG_V], flags[FLAG_Z], flags[FLAG_C]}
-                    <= {alu_n, alu_v, alu_z, alu_c};
-        endcase
-    end
+    case(flatch)
+        FL_RDATA:
+        begin
+            flags[FLAG_N] <= rdata[7];
+            flags[FLAG_Z] <= ~|rdata;
+        end
+        FL_ALU:
+        begin
+            case (alu_op)
+                ALU_OR,
+                ALU_AND,
+                ALU_EOR:
+                    {flags[FLAG_N], flags[FLAG_Z]} <= {alu_n, alu_z};
+                ALU_SHL,
+                ALU_SHR,
+                ALU_CMP:
+                    {flags[FLAG_N], flags[FLAG_Z], flags[FLAG_C]}
+                        <= {alu_n, alu_z, alu_c};
+                ALU_ADC,
+                ALU_SBC:
+                    {flags[FLAG_N], flags[FLAG_V], flags[FLAG_Z], flags[FLAG_C]}
+                        <= {alu_n, alu_v, alu_z, alu_c};
+            endcase
+        end
+        FL_BIT:
+        begin
+            flags[FLAG_N] <= rdata[7];
+            flags[FLAG_V] <= rdata[6];
+            flags[FLAG_Z] <= alu_z;
+        end
+        FL_NONE:
+            ;
+    endcase
     case(state)
         IY_ADDR_1, // Setup reg_t for next address phase
         IY_ADDR_2:
@@ -357,7 +372,7 @@ begin
                     wrreg <= REG_A;
                     rsel <= RSEL_ALU;
                     regwren <= 1;
-                    flatch <= 1;
+                    flatch <= FL_ALU;
                     // Carry in depeding on rotate or shift.
                     alu_cin <= opcode[0] ? flags[FLAG_C] : 0;
                     // shift direction based on opcode.
@@ -418,7 +433,7 @@ begin
                     regwren <= 1;
                     alu_cin = full_opcode == 8'hC8 || full_opcode == 8'hE8;
                     alu_op <= alu_cin ? ALU_ADC : ALU_SBC;
-                    rlatch <= 1;
+                    flatch <= FL_RDATA;
                 end
 
             endcase
@@ -455,7 +470,7 @@ begin
                             alu_op <=  opcode;
                             alu_cin <= opcode == 3'b110 ? 1 : flags[FLAG_C];
                             regwren <= opcode == 3'b110 ? 0 : 1;
-                            flatch <= 1;
+                            flatch <= FL_ALU;
                         end
                         3'b100:  // STA
                         begin
@@ -467,7 +482,7 @@ begin
                         begin
                             wrreg <= REG_A;
                             rsel <= RSEL_IDATA;
-                            rlatch <= 1;
+                            flatch <= FL_RDATA;
                             regwren <= 1;
                         end
                     endcase
@@ -487,10 +502,10 @@ begin
                         end
                         default:
                         begin
-                            // If LDX, then use X and rlatch, otherwise
+                            // If LDX, then use X and latch rdata, otherwise
                             // load into T.
                             wrreg <= opcode == 3'b101 ? REG_X : REG_T;
-                            rlatch <= opcode == 3'b101;
+                            flatch <= opcode == 3'b101 ? FL_RDATA : FL_NONE;
                             rsel <= RSEL_IDATA;
                             regwren <= 1;
                             state <= opcode == 3'b101 ? FETCH_I : RMW_MODIFY;
@@ -500,6 +515,13 @@ begin
                 2'b00:
                 begin
                     case(opcode)
+                        3'b001:     // BIT
+                        begin
+                            rdreg1 <= REG_A;
+                            rdreg2 <= REG_DB;
+                            alu_op <=  ALU_AND;
+                            flatch <= FL_BIT;
+                        end
                         3'b100:     // STY
                         begin
                             rdreg1 <= REG_Y;
@@ -510,7 +532,7 @@ begin
                         3'b101:     // LDY
                         begin
                             wrreg <= REG_Y;
-                            rlatch <= 1;
+                            flatch <= FL_RDATA;
                             rsel <= RSEL_IDATA;
                             regwren <= 1;
                             state <= FETCH_I;
@@ -525,7 +547,7 @@ begin
                             alu_op <=  ALU_CMP;
                             alu_cin <= 1;
                             regwren <= 0;
-                            flatch <= 1;
+                            flatch <= FL_ALU;
                         end
                         default:
                         begin
@@ -559,7 +581,7 @@ begin
                             alu_cin <= opcode[0] ? flags[FLAG_C] : 0;
                             // shift direction based on opcode.
                             alu_op <= opcode[1] ? ALU_SHR : ALU_SHL;
-                            flatch <= 1;
+                            flatch <= FL_ALU;
                         end
 
                         3'b110,  // DEC
@@ -567,7 +589,7 @@ begin
                         begin
                             alu_op <= opcode[0] ? ALU_ADC : ALU_SBC;
                             alu_cin <= opcode[0] ? 1 : 0;
-                            rlatch <= 1;
+                            flatch <= FL_RDATA;
                         end
                     endcase
                 end
@@ -715,7 +737,6 @@ begin
             regwren <= 1;
             alu_cin = 0;
             alu_op <= ALU_SBC;
-            rlatch <= 1;
             state <= FETCH_I;
         end
         PULL_0:     // Increment SP
@@ -751,8 +772,8 @@ begin
         begin
             state <=
               (opcode[0] == flags[opcode[2:1] == 2'b11 ? FLAG_Z :
-      `                           opcode[2:1] == 2'b10 ? FLAG_C :
-      `                           opcode[2:1] == 2'b01 ? FLAG_V : FLAG_N])
+                                  opcode[2:1] == 2'b10 ? FLAG_C :
+                                  opcode[2:1] == 2'b01 ? FLAG_V : FLAG_N])
                 ? RELATIVE_1 : FETCH_I;
             rdreg1 <= REG_T;
             wrreg <= REG_T;
