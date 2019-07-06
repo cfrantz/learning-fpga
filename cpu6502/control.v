@@ -62,6 +62,7 @@ reg [15:0] cycle = 0;   // cycle counter
 reg rsel = 0;           // rdata mux
 reg [1:0] osel = 0;     // odata mux
 reg acarry = 0;         // alu carry from last address computation
+reg pcarry = 0;         // will need to handle carry on relative branch
 reg nmi_pending = 0;    // NMI edge seen
 
 localparam RSEL_IDATA = 0;
@@ -225,6 +226,7 @@ begin
             else
                 addr <= pc;
 
+        RELATIVE_0,     // Displacement for relative branch
         IMMEDIATE,      // Address of immediate operand
         ZP_ADDR_0,      // Address of zero-page addr operand
         ZPX_ADDR_0,     // Address of zero-page addr operand
@@ -344,8 +346,11 @@ begin
         IY_ADDR_2:
             rdreg1 <= REG_T;
         RELATIVE_2:     // If we don't need to work on PCH, skip to fetch.
-            if (alu_c == reg2[7])
+        begin
+            //if (alu_c == reg2[7])
+            if (!(pcarry == alu_c && pcarry != reg2[7]))
                 state <= FETCH_I;
+        end
     endcase
 
 end
@@ -397,7 +402,7 @@ begin
                 8'h38,  // SEC;
                 8'h58,  // CLI;
                 8'h78,  // SEI;
-                8'h88,  // TYA;
+                8'h98,  // TYA;
                 8'hB8,  // CLV;
                 8'hD8,  // CLD;
                 8'hF8:  // SED;
@@ -411,6 +416,7 @@ begin
                 begin
                     full_opcode <= idata;
                     state <= PUSH_0;
+                    rdreg1 <= REG_SP;
                 end
                 8'h28,  // PLP
                 8'h68:  // PLA
@@ -462,6 +468,11 @@ begin
                 begin
                     full_opcode <= idata;
                     state <= RTS_1;
+                end
+                8'hbe:  // LDX abs,Y
+                begin
+                    full_opcode <= idata;
+                    state <= ABSY_ADDR_0;
                 end
                 8'hFF:  // Nonstandard: HALT
                     state <= HALT;
@@ -546,6 +557,7 @@ begin
                     regwren <= 1;
                     alu_cin <= 0;
                     alu_op <= ALU_ADC;
+                    flatch <= full_opcode == 8'h9A ? FL_NONE : FL_RDATA;
                 end
 
                 8'hC8,  // INY
@@ -553,10 +565,10 @@ begin
                 8'h88,  // DEY
                 8'hCA:  // DEX
                 begin
-                    rdreg1 = full_opcode == 8'hC8 ? REG_X :
-                           full_opcode == 8'hE8 ? REG_X :
-                           full_opcode == 8'h88 ? REG_Y :
-                           full_opcode == 8'hCA ? REG_Y : REG_Y;
+                    rdreg1 = full_opcode == 8'hC8 ? REG_Y :
+                             full_opcode == 8'hE8 ? REG_X :
+                             full_opcode == 8'h88 ? REG_Y :
+                             full_opcode == 8'hCA ? REG_X : REG_Y;
                     rdreg2 <= REG_ZERO;
                     wrreg  <= rdreg1;
                     rsel <= RSEL_ALU;
@@ -873,7 +885,7 @@ begin
         PUSH_0:     // Store register value to memory
         begin
             rdreg1 <= REG_A;
-            rdreg2 <= REG_SP;
+            rdreg2 <= REG_ZERO;
             osel <= full_opcode[6] ? OSEL_REG : OSEL_FLAGS;
             rw <= 0;
             state <= state + 1;
@@ -917,6 +929,7 @@ begin
             begin
                 wrreg <= REG_A;
                 rsel <= RSEL_IDATA;
+                flatch <= FL_RDATA;
                 regwren <= 1;
             end
             state <= state + 1;
@@ -931,7 +944,7 @@ begin
                                   opcode[2:1] == 2'b10 ? FLAG_C :
                                   opcode[2:1] == 2'b01 ? FLAG_V : FLAG_N])
                 ? RELATIVE_1 : FETCH_I;
-            rdreg1 <= REG_T;
+            rdreg2 <= REG_T;
             wrreg <= REG_T;
             rsel <= RSEL_IDATA;
             regwren <= 1;
@@ -939,6 +952,7 @@ begin
         end
         RELATIVE_1:
         begin
+            pcarry <= pc[7];
             rdreg1 <= REG_PCL;
             rdreg2 <= REG_T;
             wrreg  <= REG_PCL;
@@ -955,8 +969,8 @@ begin
             wrreg  <= REG_PCH;
             rsel <= RSEL_ALU;
             regwren <= 1;
-            alu_cin <= alu_c;
-            alu_op <= reg2[7] ? ALU_SBC : ALU_ADC;
+            alu_op  <= reg2[7] ? ALU_SBC : ALU_ADC;
+            alu_cin <= acarry;
             state <= FETCH_I;
         end
 

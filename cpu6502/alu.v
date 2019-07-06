@@ -36,7 +36,7 @@ begin
         ALU_SBC:
         begin
             {c_out, result} <= {1'b0, a} + {1'b0, ~b} + {8'b0, c_in};
-            v_out <= ~(a[7] ^ b[7]) & (a[7] ^ result[7]);
+            v_out <= (a[7] ^ b[7]) & (a[7] ^ result[7]);
         end
     endcase
     n_out <= result[7];

@@ -77,19 +77,19 @@ begin
     clk = !clk;
     counter <= counter + 1;
     // Reset vector fetch at FFFC
-    `ASSERT_AT(5, addr == 16'hFFFC);
-    `ASSERT_AT(9, addr == 16'hFFFD);
+    `ASSERT_AT(16'h05, addr == 16'hFFFC);
+    `ASSERT_AT(16'h09, addr == 16'hFFFD);
 
     // Fetch code at FF00
-    `ASSERT_AT(13, addr == 16'hFF00);
-    `ASSERT_AT(21, addr == 16'hFF01);
+    `ASSERT_AT(16'h0d, addr == 16'hFF00);
+    `ASSERT_AT(16'h15, addr == 16'hFF01);
 
     // Reset again, re-fetch reset vector
-    `ASSERT_AT(49, addr == 16'hFFFC);
-    `ASSERT_AT(53, addr == 16'hFFFD);
+    `ASSERT_AT(16'h25, addr == 16'hFFFC);
+    `ASSERT_AT(16'h29, addr == 16'hFFFD);
     // And execute code again
-    `ASSERT_AT(57, addr == 16'hFF00);
-    `ASSERT_AT(65, addr == 16'hFF01);
+    `ASSERT_AT(16'h2d, addr == 16'hFF00);
+    `ASSERT_AT(16'h35, addr == 16'hFF01);
 end
 
 endmodule
