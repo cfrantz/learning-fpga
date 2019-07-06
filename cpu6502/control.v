@@ -62,6 +62,7 @@ reg [15:0] cycle = 0;   // cycle counter
 reg rsel = 0;           // rdata mux
 reg [1:0] osel = 0;     // odata mux
 reg acarry = 0;         // alu carry from last address computation
+reg nmi_pending = 0;    // NMI edge seen
 
 localparam RSEL_IDATA = 0;
 localparam RSEL_ALU = 1;
@@ -87,7 +88,7 @@ parameter JSR_2        = 8'h22;
 parameter JSR_3        = 8'h23;
 parameter JSR_4        = 8'h24;
 
-// The RTS state numbers are arranges so the low bits will be the same
+// The RTS state numbers are arranged so the low bits will be the same
 // for RTI states.
 parameter RTS_1        = 8'h31;
 parameter RTS_2        = 8'h32;
@@ -107,6 +108,22 @@ parameter BRK_2         =8'h42;
 parameter BRK_3         =8'h43;
 parameter BRK_4         =8'h44;
 parameter BRK_5         =8'h45;
+
+parameter NMI_INIT      =8'h4f;
+parameter NMI_0         =8'h50;
+parameter NMI_1         =8'h51;
+parameter NMI_2         =8'h52;
+parameter NMI_3         =8'h53;
+parameter NMI_4         =8'h54;
+parameter NMI_5         =8'h55;
+
+parameter IRQ_INIT      =8'h57;
+parameter IRQ_0         =8'h58;
+parameter IRQ_1         =8'h59;
+parameter IRQ_2         =8'h5a;
+parameter IRQ_3         =8'h5b;
+parameter IRQ_4         =8'h5c;
+parameter IRQ_5         =8'h5d;
 
 parameter IMPLIED   = 8'h70;
 parameter PUSH_0    = 8'h72;
@@ -165,6 +182,11 @@ begin
     state <= RESET_0;
 end
 
+always @(negedge nmi)
+begin
+    nmi_pending <= 1;
+end
+
 // Rising edge of clk1 is when addresses are driven
 always @(posedge clk1)
 begin
@@ -172,6 +194,7 @@ begin
     osel <= OSEL_Z;
     flatch <= FL_NONE;
     cycle = cycle + 1;
+
     case(state)
         RESET_0:
         begin
@@ -184,12 +207,23 @@ begin
             addr <= 16'hFFFC;
         RESET_PCH:
             addr <= 16'hFFFD;
+        NMI_4:
+            addr <= 16'hFFFA;
+        NMI_5:
+            addr <= 16'hFFFB;
+        IRQ_4,
         BRK_4:
             addr <= 16'hFFFE;
+        IRQ_5,
         BRK_5:
             addr <= 16'hFFFF;
         FETCH_I:
-            addr <= pc;
+            if (nmi_pending)
+                state <= NMI_INIT;
+            else if (~irq && ~flags[FLAG_I])
+                state <= IRQ_INIT;
+            else
+                addr <= pc;
 
         IMMEDIATE,      // Address of immediate operand
         ZP_ADDR_0,      // Address of zero-page addr operand
@@ -231,6 +265,12 @@ begin
         BRK_0,          // brk push PCH
         BRK_1,          // brk push PCL
         BRK_3,          // brk push flags
+        NMI_0,          // brk push PCH
+        NMI_1,          // brk push PCL
+        NMI_3,          // brk push flags
+        IRQ_0,          // brk push PCH
+        IRQ_1,          // brk push PCL
+        IRQ_3,          // brk push flags
         JSR_1,          // jsr push PCH
         JSR_2,          // jsr push PCL
         RTS_2,          // rts pull pcl
@@ -243,6 +283,8 @@ begin
         begin
             addr <= {8'b00000001, reg1};
         end
+        NMI_1,
+        IRQ_1,
         BRK_1:
             addr <= 16'bz;
     endcase
@@ -253,7 +295,7 @@ assign rdata = rsel == RSEL_IDATA ? idata :
                rsel == RSEL_ALU ? alu_result : 8'bz;
 // Data driven to output comes from register file.
 assign odata = osel == OSEL_REG ? reg1 :
-               osel == OSEL_FLAGS ? {flags[7:6], 1'b1, irq|nmi, flags[3:0]} :
+               osel == OSEL_FLAGS ? {flags[7:6], 1'b1, irq&~nmi_pending, flags[3:0]} :
                osel == OSEL_PCH ? pc[15:8] : 8'bz;
 
 // Falling edge of clk2 is when registers get latched.
@@ -772,6 +814,8 @@ begin
             incr_pc <= 1;
         end
 
+        NMI_INIT,
+        IRQ_INIT,
         ABSX_ADDR_2,    // stall state
         ABSY_ADDR_2,    // stall state
         IY_ADDR_3:      // stall state
@@ -986,17 +1030,24 @@ begin
             state <= FETCH_I;
         end
 
+        NMI_0,
+        NMI_2,
+        NMI_3,
+        IRQ_0,
+        IRQ_2,
+        IRQ_3,
         BRK_0,  // increment PC, send PCH to odata, sp--
         BRK_2,  // sp--
         BRK_3:  // send flags to odata, sp--
         begin
-            if (state == BRK_0)
+            if (state[2:0] == 3'b000)
             begin
-                incr_pc <= 1;
+                if (state == BRK_0)
+                    incr_pc <= 1;
                 osel <= OSEL_PCH;
                 rw <= 0;
             end
-            else if (state == BRK_3)
+            else if (state[2:0] == 3'b011)
             begin
                 osel <= OSEL_FLAGS;
                 rw <= 0;
@@ -1010,7 +1061,8 @@ begin
             alu_op <= ALU_SBC;
             state <= state + 1;
         end
-
+        NMI_1,
+        IRQ_1,
         BRK_1:
         begin
             rdreg1 <= REG_PCL;
@@ -1018,6 +1070,8 @@ begin
             rw <= 0;
             state <= state + 1;
         end
+        NMI_4,
+        IRQ_4,
         BRK_4:
         begin
             rsel <= RSEL_IDATA;
@@ -1025,8 +1079,12 @@ begin
             regwren <= 1;
             state <= state + 1;
         end
+        NMI_5,
+        IRQ_5,
         BRK_5:
         begin
+            flags[FLAG_I] <= 1;
+            nmi_pending <= 0;
             rsel <= RSEL_IDATA;
             wrreg <= REG_PCH;
             regwren <= 1;
