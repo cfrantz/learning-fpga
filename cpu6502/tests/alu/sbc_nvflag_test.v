@@ -48,8 +48,8 @@ wire [15:0] addr;
 wire [7:0] idata;
 wire [7:0] odata;
 wire rw;
-wire nmi;
-wire irq;
+wire nmi = 1;
+wire irq = 1;
 wire clk1;
 wire clk2;
 
