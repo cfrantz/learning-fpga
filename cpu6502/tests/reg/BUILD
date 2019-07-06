@@ -4,6 +4,12 @@ load("//rules:verilog.bzl", "verilog_library",
 )
 
 verilog_test(
+    name = "lda_test",
+    srcs = [ "lda_test.v" ],
+    deps = [ "//cpu6502" ],
+)
+
+verilog_test(
     name = "lda_stxy_test",
     srcs = [ "lda_stxy_test.v" ],
     deps = [ "//cpu6502" ],

@@ -69,7 +69,7 @@ initial begin
     $dumpfile(`VCDOUT);
     $dumpvars(0, test);
     # 1 reset = 0;
-    # 32 nmi = 0;
+    # 32 irq = 0;
     # 192 $finish;
 end
 

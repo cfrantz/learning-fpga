@@ -4,6 +4,12 @@ load("//rules:verilog.bzl", "verilog_library",
 )
 
 verilog_test(
+    name = "reset_test",
+    srcs = [ "reset_test.v" ],
+    deps = [ "//cpu6502" ],
+)
+
+verilog_test(
     name = "brk_test",
     srcs = [ "brk_test.v" ],
     deps = [ "//cpu6502" ],
