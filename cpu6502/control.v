@@ -171,88 +171,81 @@ begin
     incr_pc <= 0;
     osel <= OSEL_Z;
     flatch <= FL_NONE;
-    if (reset)
-    begin
-        //state <= RESET_0;
-    end
-    else
-    begin
-        cycle = cycle + 1;
-        case(state)
-            RESET_0:
-            begin
-                rw <= 1;
-                state <= RESET_1;
-                cycle <= 0;
-            end
+    cycle = cycle + 1;
+    case(state)
+        RESET_0:
+        begin
+            rw <= 1;
+            state <= RESET_1;
+            cycle <= 0;
+        end
 
-            RESET_PCL:
-                addr <= 16'hFFFC;
-            RESET_PCH:
-                addr <= 16'hFFFD;
-            BRK_4:
-                addr <= 16'hFFFE;
-            BRK_5:
-                addr <= 16'hFFFF;
-            FETCH_I:
-                addr <= pc;
+        RESET_PCL:
+            addr <= 16'hFFFC;
+        RESET_PCH:
+            addr <= 16'hFFFD;
+        BRK_4:
+            addr <= 16'hFFFE;
+        BRK_5:
+            addr <= 16'hFFFF;
+        FETCH_I:
+            addr <= pc;
 
-            IMMEDIATE,      // Address of immediate operand
-            ZP_ADDR_0,      // Address of zero-page addr operand
-            ZPX_ADDR_0,     // Address of zero-page addr operand
-            ABS_ADDR_0,     // Address of absaddr low byte
-            ABS_ADDR_1,     // Address of absaddr high byte
-            ABSX_ADDR_0,    // Address of absaddr low byte
-            ABSX_ADDR_1,    // Address of absaddr high byte
-            ABSY_ADDR_0,    // Address of absaddr low byte
-            ABSY_ADDR_1,    // Address of absaddr high byte
-            JMP_ABS_0,      // Address of jmp dest low byte
-            JMP_ABS_1,      // Address of jmp dest high byte
-            JMP_ABSI_0,     // Address of jmp ptr low byte
-            JMP_ABSI_1,     // Address of jmp ptr high byte
-            JSR_0,          // Subroutine low addr
-            JSR_4,          // Subroutine high addr
-            IX_ADDR_0,      // ZP address
-            IY_ADDR_0:      // ZP address
-                addr <= pc;
-            ZP_ADDR_1,      // Address fetched in prior state
-            ZPX_ADDR_2:     // Address computed in prior state
-                addr <= {8'b0, reg1};
-            ABS_ADDR_2,
-            ABSX_ADDR_3,
-            ABSY_ADDR_3,
-            JMP_ABSI_2,
-            IX_ADDR_4,
-            IY_ADDR_4:
-                addr <= iaddr;
-            JMP_ABSI_3:     // Replicate page-cross fail in orig 6502.
-                addr <= {iaddr[15:8], iaddr[7:0]+8'h01};
+        IMMEDIATE,      // Address of immediate operand
+        ZP_ADDR_0,      // Address of zero-page addr operand
+        ZPX_ADDR_0,     // Address of zero-page addr operand
+        ABS_ADDR_0,     // Address of absaddr low byte
+        ABS_ADDR_1,     // Address of absaddr high byte
+        ABSX_ADDR_0,    // Address of absaddr low byte
+        ABSX_ADDR_1,    // Address of absaddr high byte
+        ABSY_ADDR_0,    // Address of absaddr low byte
+        ABSY_ADDR_1,    // Address of absaddr high byte
+        JMP_ABS_0,      // Address of jmp dest low byte
+        JMP_ABS_1,      // Address of jmp dest high byte
+        JMP_ABSI_0,     // Address of jmp ptr low byte
+        JMP_ABSI_1,     // Address of jmp ptr high byte
+        JSR_0,          // Subroutine low addr
+        JSR_4,          // Subroutine high addr
+        IX_ADDR_0,      // ZP address
+        IY_ADDR_0:      // ZP address
+            addr <= pc;
+        ZP_ADDR_1,      // Address fetched in prior state
+        ZPX_ADDR_2:     // Address computed in prior state
+            addr <= {8'b0, reg1};
+        ABS_ADDR_2,
+        ABSX_ADDR_3,
+        ABSY_ADDR_3,
+        JMP_ABSI_2,
+        IX_ADDR_4,
+        IY_ADDR_4:
+            addr <= iaddr;
+        JMP_ABSI_3:     // Replicate page-cross fail in orig 6502.
+            addr <= {iaddr[15:8], iaddr[7:0]+8'h01};
 
-            IX_ADDR_2,
-            IY_ADDR_1:
-                addr <= {8'b0, reg1};
-            IX_ADDR_3,
-            IY_ADDR_2:
-                addr <= {8'b0, reg1 + 8'h01};
-            BRK_0,          // brk push PCH
-            BRK_1,          // brk push PCL
-            BRK_3,          // brk push flags
-            JSR_1,          // jsr push PCH
-            JSR_2,          // jsr push PCL
-            RTS_2,          // rts pull pcl
-            RTS_4,          // rts pull pch
-            RTI_0,          // rti pull flags
-            RTI_2,          // rti pull pcl
-            RTI_4,          // rti pull pch
-            PUSH_0,         // Stack operations
-            PULL_1:
-            begin
-                addr <= {8'b00000001, reg1};
-            end
-            BRK_1:
-                addr <= 16'bz;
-        endcase
-    end
+        IX_ADDR_2,
+        IY_ADDR_1:
+            addr <= {8'b0, reg1};
+        IX_ADDR_3,
+        IY_ADDR_2:
+            addr <= {8'b0, reg1 + 8'h01};
+        BRK_0,          // brk push PCH
+        BRK_1,          // brk push PCL
+        BRK_3,          // brk push flags
+        JSR_1,          // jsr push PCH
+        JSR_2,          // jsr push PCL
+        RTS_2,          // rts pull pcl
+        RTS_4,          // rts pull pch
+        RTI_0,          // rti pull flags
+        RTI_2,          // rti pull pcl
+        RTI_4,          // rti pull pch
+        PUSH_0,         // Stack operations
+        PULL_1:
+        begin
+            addr <= {8'b00000001, reg1};
+        end
+        BRK_1:
+            addr <= 16'bz;
+    endcase
 end
 
 // Data we drive to the register file is muxed on rsel.
@@ -317,11 +310,6 @@ end
 
 // clk2 is when instructions get executed
 always @(posedge clk2)
-begin
-if (reset)
-begin
-end
-else
 begin
     case(state)
         RESET_1:
@@ -1049,7 +1037,6 @@ begin
             state <= HALT;
 
     endcase
-end
 end
 
 endmodule
