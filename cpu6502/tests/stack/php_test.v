@@ -30,12 +30,13 @@ begin
         16'h0005: data = 8'h08;     // PHP
         16'h0006: data = 8'h08;     // PHP
         16'h0007: data = 8'h28;     // PLP
+        16'h0008: data = 8'hea;     // NOP
 
         16'h01fe: data = 8'hAA;
         16'h01ff: data = 8'hAA;
         16'hFFFC: data = 8'h00;
         16'hFFFD: data = 8'h00;
-        default: data = 8'h00;
+        default: data = 8'hff;
     endcase
 
 end
@@ -51,8 +52,8 @@ wire [15:0] addr;
 wire [7:0] idata;
 wire [7:0] odata;
 wire rw;
-wire nmi;
-wire irq;
+wire nmi = 1;
+wire irq = 1;
 wire clk1;
 wire clk2;
 
@@ -77,17 +78,17 @@ begin
 
     // PHA
     `ASSERT_AT(16'h33, addr == 16'h01ff);
-    `ASSERT_AT(16'h33, odata == 8'h85);
+    `ASSERT_AT(16'h33, odata == 8'hb5);
     `ASSERT_AT(16'h33, rw == 0);
     // PHA
     `ASSERT_AT(16'h3f, addr == 16'h01fe);
-    `ASSERT_AT(16'h3f, odata == 8'h85);
+    `ASSERT_AT(16'h3f, odata == 8'hb5);
     `ASSERT_AT(16'h3f, rw == 0);
     // PLA
     `ASSERT_AT(16'h4d, addr == 16'h01fe);
     `ASSERT_AT(16'h4d, idata == 8'haa);
     `ASSERT_AT(16'h4d, rw == 1);
-    `ASSERT_AT(16'h4f, cpu.control0.flags == 8'haa);
+    `ASSERT_AT(16'h4f, cpu.control0.flags == 8'h8a);
 
 
 end

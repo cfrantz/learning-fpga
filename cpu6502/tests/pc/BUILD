@@ -32,3 +32,11 @@ verilog_test(
     srcs = [ "rti_test.v" ],
     deps = [ "//cpu6502" ],
 )
+
+verilog_test(
+    name = "brk_test",
+    srcs = [ "brk_test.v" ],
+    deps = [ "//cpu6502" ],
+)
+
+

@@ -32,7 +32,7 @@ begin
         16'h5597: data = 8'hEA;     // NOP
         16'hFFFC: data = 8'h00;
         16'hFFFD: data = 8'h22;
-        default: data = 8'h00;
+        default: data = 8'hff;
     endcase
 
 end

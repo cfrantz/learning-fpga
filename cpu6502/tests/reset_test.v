@@ -38,6 +38,7 @@ begin
         13: data = 8'hFF;
         14: data = 8'h00;
         15: data = 8'h00;
+        default: data = 8'hff;
     endcase
 
 end

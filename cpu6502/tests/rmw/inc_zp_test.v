@@ -31,7 +31,7 @@ begin
         16'h0081: data = 8'h7F;
         16'hFFFC: data = 8'h00;
         16'hFFFD: data = 8'h00;
-        default: data = 8'h00;
+        default: data = 8'hff;
     endcase
 
 end
