@@ -101,6 +101,13 @@ parameter RTI_2        = 8'h3a;
 parameter RTI_3        = 8'h3b;
 parameter RTI_4        = 8'h3c;
 
+parameter BRK_0         =8'h40;
+parameter BRK_1         =8'h41;
+parameter BRK_2         =8'h42;
+parameter BRK_3         =8'h43;
+parameter BRK_4         =8'h44;
+parameter BRK_5         =8'h45;
+
 parameter IMPLIED   = 8'h70;
 parameter PUSH_0    = 8'h72;
 parameter PUSH_1    = 8'h73;
@@ -151,6 +158,7 @@ parameter ABSX_ADDR_0 = 8'hf0;
 parameter ABSX_ADDR_1 = 8'hf1;
 parameter ABSX_ADDR_2 = 8'hf2;
 parameter ABSX_ADDR_3 = 8'hf3;
+parameter HALT        = 8'hFF;
 
 always @(posedge reset)
 begin
@@ -182,6 +190,10 @@ begin
                 addr <= 16'hFFFC;
             RESET_PCH:
                 addr <= 16'hFFFD;
+            BRK_4:
+                addr <= 16'hFFFE;
+            BRK_5:
+                addr <= 16'hFFFF;
             FETCH_I:
                 addr <= pc;
 
@@ -222,6 +234,9 @@ begin
             IX_ADDR_3,
             IY_ADDR_2:
                 addr <= {8'b0, reg1 + 8'h01};
+            BRK_0,          // brk push PCH
+            BRK_1,          // brk push PCL
+            BRK_3,          // brk push flags
             JSR_1,          // jsr push PCH
             JSR_2,          // jsr push PCL
             RTS_2,          // rts pull pcl
@@ -234,6 +249,8 @@ begin
             begin
                 addr <= {8'b00000001, reg1};
             end
+            BRK_1:
+                addr <= 16'bz;
         endcase
     end
 end
@@ -243,7 +260,7 @@ assign rdata = rsel == RSEL_IDATA ? idata :
                rsel == RSEL_ALU ? alu_result : 8'bz;
 // Data driven to output comes from register file.
 assign odata = osel == OSEL_REG ? reg1 :
-               osel == OSEL_FLAGS ? flags :
+               osel == OSEL_FLAGS ? {flags[7:6], 1'b1, irq|nmi, flags[3:0]} :
                osel == OSEL_PCH ? pc[15:8] : 8'bz;
 
 // Falling edge of clk2 is when registers get latched.
@@ -327,6 +344,11 @@ begin
         FETCH_I: // Instruction fetch and decode
         begin
             case (idata)
+                8'h00:  // BRK;
+                begin
+                    full_opcode <= idata;
+                    state <= BRK_0;
+                end
                 8'h0A,  // ASL A;
                 8'h2A,  // ROL A;
                 8'h4A,  // LSR A;
@@ -411,6 +433,8 @@ begin
                     full_opcode <= idata;
                     state <= RTS_1;
                 end
+                8'hFF:  // Nonstandard: HALT
+                    state <= HALT;
 
             default:
             begin
@@ -855,7 +879,7 @@ begin
             if (full_opcode == 8'h28 || full_opcode == 8'h40)
             begin
                 // PLP
-                flags <= idata;
+                flags <= {idata[7:6], 2'b00, idata[3:0]};
             end
             else
             begin
@@ -945,6 +969,7 @@ begin
             alu_op <= ALU_SBC;
             state <= state + 1;
         end
+
         JSR_4: // Get PCH from idata, letch T->PCL.
         begin
             wrreg <= REG_PCH;
@@ -972,6 +997,57 @@ begin
             incr_pc <= 1;
             state <= FETCH_I;
         end
+
+        BRK_0,  // increment PC, send PCH to odata, sp--
+        BRK_2,  // sp--
+        BRK_3:  // send flags to odata, sp--
+        begin
+            if (state == BRK_0)
+            begin
+                incr_pc <= 1;
+                osel <= OSEL_PCH;
+                rw <= 0;
+            end
+            else if (state == BRK_3)
+            begin
+                osel <= OSEL_FLAGS;
+                rw <= 0;
+            end
+            rdreg1 <= REG_SP;
+            rdreg2 <= REG_ZERO;
+            wrreg  <= REG_SP;
+            rsel <= RSEL_ALU;
+            regwren <= 1;
+            alu_cin = 0;
+            alu_op <= ALU_SBC;
+            state <= state + 1;
+        end
+
+        BRK_1:
+        begin
+            rdreg1 <= REG_PCL;
+            osel <= OSEL_REG;
+            rw <= 0;
+            state <= state + 1;
+        end
+        BRK_4:
+        begin
+            rsel <= RSEL_IDATA;
+            wrreg <= REG_PCL;
+            regwren <= 1;
+            state <= state + 1;
+        end
+        BRK_5:
+        begin
+            rsel <= RSEL_IDATA;
+            wrreg <= REG_PCH;
+            regwren <= 1;
+            state <= FETCH_I;
+        end
+
+        HALT:
+            state <= HALT;
+
     endcase
 end
 end
