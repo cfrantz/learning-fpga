@@ -57,21 +57,22 @@ rom r(addr, idata, rw);
 initial begin
     $dumpfile(`VCDOUT);
     $dumpvars(0, test);
-    # 1 reset = 0;
+    # 4 reset = 0;
     # 192 $finish;
 end
 
 always #1
 begin
     clk = !clk;
-    counter <= counter + 1;
+    if (clk)
+        counter <= counter + 1;
 
     // Load timestamps are at the end of phi2 (falling edge of clk2)
     // Store timestamps are at the begin of phi2 (rising edge of clk2)
 
     // NOP after JMP $5597
-    `ASSERT_AT(16'h19, addr == 16'h5597);
-    `ASSERT_AT(16'h19, idata == 8'hea);
+    `ASSERT_AT(16'h1f, addr == 16'h5597);
+    `ASSERT_AT(16'h1f, idata == 8'hea);
 end
 
 endmodule

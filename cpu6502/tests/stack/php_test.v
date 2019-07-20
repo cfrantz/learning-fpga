@@ -64,31 +64,32 @@ rom r(addr, idata, rw);
 initial begin
     $dumpfile(`VCDOUT);
     $dumpvars(0, test);
-    # 1 reset = 0;
+    # 4 reset = 0;
     # 192 $finish;
 end
 
 always #1
 begin
     clk = !clk;
-    counter <= counter + 1;
+    if (clk)
+        counter <= counter + 1;
 
     // Load timestamps are at the end of phi2 (falling edge of clk2)
     // Store timestamps are at the begin of phi2 (rising edge of clk2)
 
     // PHA
-    `ASSERT_AT(16'h33, addr == 16'h01ff);
-    `ASSERT_AT(16'h33, odata == 8'hb5);
-    `ASSERT_AT(16'h33, rw == 0);
+    `ASSERT_AT(16'h39, addr == 16'h01ff);
+    `ASSERT_AT(16'h39, odata == 8'hb5);
+    `ASSERT_AT(16'h39, rw == 0);
     // PHA
-    `ASSERT_AT(16'h3f, addr == 16'h01fe);
-    `ASSERT_AT(16'h3f, odata == 8'hb5);
-    `ASSERT_AT(16'h3f, rw == 0);
+    `ASSERT_AT(16'h45, addr == 16'h01fe);
+    `ASSERT_AT(16'h45, odata == 8'hb5);
+    `ASSERT_AT(16'h45, rw == 0);
     // PLA
-    `ASSERT_AT(16'h4d, addr == 16'h01fe);
-    `ASSERT_AT(16'h4d, idata == 8'haa);
-    `ASSERT_AT(16'h4d, rw == 1);
-    `ASSERT_AT(16'h4f, cpu.control0.flags == 8'h8a);
+    `ASSERT_AT(16'h53, addr == 16'h01fe);
+    `ASSERT_AT(16'h53, idata == 8'haa);
+    `ASSERT_AT(16'h53, rw == 1);
+    `ASSERT_AT(16'h55, cpu.control0.flags == 8'h8a);
 
 
 end

@@ -79,54 +79,55 @@ rom r(addr, idata, rw);
 initial begin
     $dumpfile(`VCDOUT);
     $dumpvars(0, test);
-    # 1 reset = 0;
+    # 4 reset = 0;
     # 192 $finish;
 end
 
 always #1
 begin
     clk = !clk;
-    counter <= counter + 1;
+    if (clk)
+        counter <= counter + 1;
 
     // Load timestamps are at the end of phi2 (falling edge of clk2)
     // Store timestamps are at the begin of phi2 (rising edge of clk2)
 
     // LDA #0
-    `ASSERT_AT(16'h14, cpu.control0.flags == 8'h02);
+    `ASSERT_AT(16'h1a, cpu.control0.flags == 8'h02);
     // LDA #-1
-    `ASSERT_AT(16'h1c, cpu.control0.flags == 8'h80);
+    `ASSERT_AT(16'h22, cpu.control0.flags == 8'h80);
 
     // STA $99
-    `ASSERT_AT(16'h27, addr == 16'h0099);
-    `ASSERT_AT(16'h27, odata == 8'hFF);
-    `ASSERT_AT(16'h27, rw == 0);
+    `ASSERT_AT(16'h2d, addr == 16'h0099);
+    `ASSERT_AT(16'h2d, odata == 8'hFF);
+    `ASSERT_AT(16'h2d, rw == 0);
 
     // STA $33,x
-    `ASSERT_AT(16'h3f, addr == 16'h0044);
-    `ASSERT_AT(16'h3f, odata == 8'hFF);
-    `ASSERT_AT(16'h3f, rw == 0);
+    `ASSERT_AT(16'h45, addr == 16'h0044);
+    `ASSERT_AT(16'h45, odata == 8'hFF);
+    `ASSERT_AT(16'h45, rw == 0);
 
     // LDA $FFFE
-    `ASSERT_AT(16'h50, addr == 16'hFFFE);
-    `ASSERT_AT(16'h50, cpu.control0.flags == 8'h80);
+    `ASSERT_AT(16'h56, addr == 16'hFFFE);
+    `ASSERT_AT(16'h56, cpu.control0.flags == 8'h80);
 
     // STA $44f0,x
-    `ASSERT_AT(16'h63, addr == 16'h4501);
-    `ASSERT_AT(16'h63, odata == 8'h80);
-    `ASSERT_AT(16'h63, rw == 0);
+    `ASSERT_AT(16'h69, addr == 16'h4501);
+    `ASSERT_AT(16'h69, odata == 8'h80);
+    `ASSERT_AT(16'h69, rw == 0);
 
     // STA $44f0,y
-    `ASSERT_AT(16'h77, addr == 16'h44f0);
-    `ASSERT_AT(16'h77, odata == 8'h80);
-    `ASSERT_AT(16'h77, rw == 0);
+    `ASSERT_AT(16'h7b, addr == 16'h44f0);
+    `ASSERT_AT(16'h7b, odata == 8'h80);
+    `ASSERT_AT(16'h7b, rw == 0);
 
     // LDA ($f7,x)
-    `ASSERT_AT(16'h90, addr == 16'h3395);
-    `ASSERT_AT(16'h90, idata == 8'h55);
+    `ASSERT_AT(16'h96, addr == 16'h3395);
+    `ASSERT_AT(16'h96, idata == 8'h55);
 
     // LDA ($02),y
-    `ASSERT_AT(16'ha4, addr == 16'hffa9);
-    `ASSERT_AT(16'ha4, idata == 8'haa);
+    `ASSERT_AT(16'haa, addr == 16'hffa9);
+    `ASSERT_AT(16'haa, idata == 8'haa);
 end
 
 endmodule

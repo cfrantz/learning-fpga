@@ -40,8 +40,8 @@ ram r(.address(addr[13:0]),
 initial begin
     $dumpfile(`VCDOUT);
     $dumpvars(0, test);
-    # 1 reset = 0;
-    # 2000000 $finish;
+    # 4 reset = 0;
+    # 4000000 $finish;
 end
 
 always #1

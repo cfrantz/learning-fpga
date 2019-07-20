@@ -69,36 +69,37 @@ initial begin
     $dumpfile(`VCDOUT);
     $dumpvars(0, test);
     # 1 reset = 0;
-    # 32 nmi = 0;
+    # 68 nmi = 0;
     # 192 $finish;
 end
 
 always #1
 begin
     clk = !clk;
-    counter <= counter + 1;
+    if (clk)
+        counter <= counter + 1;
 
     // Load timestamps are at the end of phi2 (falling edge of clk2)
     // Store timestamps are at the begin of phi2 (rising edge of clk2)
 
     // push of PCH during JSR
-    `ASSERT_AT(16'h2b, addr == 16'h01ff);
-    `ASSERT_AT(16'h2b, odata == 8'h11);
-    `ASSERT_AT(16'h2b, rw == 0);
+    `ASSERT_AT(16'h30, addr == 16'h01ff);
+    `ASSERT_AT(16'h30, odata == 8'h11);
+    `ASSERT_AT(16'h30, rw == 0);
 
     // push of PCL during JSR
-    `ASSERT_AT(16'h2f, addr == 16'h01fe);
-    `ASSERT_AT(16'h2f, odata == 8'h04);
-    `ASSERT_AT(16'h2f, rw == 0);
+    `ASSERT_AT(16'h34, addr == 16'h01fe);
+    `ASSERT_AT(16'h34, odata == 8'h04);
+    `ASSERT_AT(16'h34, rw == 0);
 
     // push of PCL during JSR
-    `ASSERT_AT(16'h37, addr == 16'h01fd);
-    `ASSERT_AT(16'h37, odata == 8'ha0);
-    `ASSERT_AT(16'h37, rw == 0);
+    `ASSERT_AT(16'h3c, addr == 16'h01fd);
+    `ASSERT_AT(16'h3c, odata == 8'ha0);
+    `ASSERT_AT(16'h3c, rw == 0);
 
     // NOP after JSR $5597
-    `ASSERT_AT(16'h41, addr == 16'h4433);
-    `ASSERT_AT(16'h41, idata == 8'hea);
+    `ASSERT_AT(16'h46, addr == 16'h4433);
+    `ASSERT_AT(16'h46, idata == 8'hea);
 end
 
 endmodule

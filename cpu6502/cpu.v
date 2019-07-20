@@ -1,5 +1,5 @@
 module cpu6502(
-    input clk,
+    input clk4x,
     input reset,
     input irq,
     input nmi,
@@ -9,20 +9,7 @@ module cpu6502(
     output [7:0] odata,
     output rw,
     output clk1,
-    output reg clk2);
-
-
-reg clkdiv = 0;
-assign clk1 = clkdiv;
-always @(posedge clk)
-begin
-    clkdiv <= clkdiv + 1;
-end
-always @(clk)
-begin
-    clk2 <= clk & clkdiv;
-end
-
+    output clk2);
 
 wire [3:0] rdreg1, rdreg2, wrreg;
 wire [7:0] regout1, regout2, regdata, alu_out;
@@ -30,10 +17,11 @@ wire alu_cin, alu_c, alu_z, alu_v, alu_n;
 wire [2:0] alu_op;
 wire regwren, tpcl, incr_pc;
 wire [15:0] pc, iaddr;
+wire subreset;
 
 regfile reg0(
     .clk(clk2),
-    .reset(reset),
+    .reset(subreset),
     .rdsel1(rdreg1),
     .rdsel2(rdreg2),
     .wrenable(regwren),
@@ -60,9 +48,10 @@ alu alu0(
     .n_out(alu_n));
 
 control control0(
+    .clk4x(clk4x),
     .clk1(clk1),
     .clk2(clk2),
-    .reset(reset), .irq(irq), .nmi(nmi),
+    .reset(reset), .subreset(subreset), .irq(irq), .nmi(nmi),
     .pc(pc),
     .iaddr(iaddr),
     .idata(idata),

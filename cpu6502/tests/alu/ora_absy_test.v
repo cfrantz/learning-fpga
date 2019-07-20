@@ -61,24 +61,24 @@ rom r(addr, idata, rw);
 initial begin
     $dumpfile(`VCDOUT);
     $dumpvars(0, test);
-    # 1 reset = 0;
+    # 4 reset = 0;
     # 192 $finish;
 end
 
 always #1
 begin
     clk = !clk;
-    counter <= counter + 1;
+    if (clk) counter <= counter + 1;
 
     // Load timestamps are at the end of phi2 (falling edge of clk2)
     // Store timestamps are at the begin of phi2 (rising edge of clk2)
 
     // ORA #$84 - N should set, Z should clear.
-    `ASSERT_AT(16'h14, cpu.control0.flags == 8'h80);
+    `ASSERT_AT(16'h1a, cpu.control0.flags == 8'h80);
     // STA $99
-    `ASSERT_AT(16'h33, addr == 16'h0099);
-    `ASSERT_AT(16'h33, odata == 8'hf0);
-    `ASSERT_AT(16'h33, rw == 0);
+    `ASSERT_AT(16'h39, addr == 16'h0099);
+    `ASSERT_AT(16'h39, odata == 8'hf0);
+    `ASSERT_AT(16'h39, rw == 0);
 
 end
 

@@ -61,22 +61,22 @@ rom r(addr, idata, rw);
 initial begin
     $dumpfile(`VCDOUT);
     $dumpvars(0, test);
-    # 1 reset = 0;
+    # 4 reset = 0;
     # 192 $finish;
 end
 
 always #1
 begin
     clk = !clk;
-    counter <= counter + 1;
+    if (clk) counter <= counter + 1;
 
     // Load timestamps are at the end of phi2 (falling edge of clk2)
     // Store timestamps are at the begin of phi2 (rising edge of clk2)
 
     // STA $99
-    `ASSERT_AT(16'h3f, addr == 16'h0099);
-    `ASSERT_AT(16'h3f, odata == 8'hEF);
-    `ASSERT_AT(16'h3f, rw == 0);
+    `ASSERT_AT(16'h45, addr == 16'h0099);
+    `ASSERT_AT(16'h45, odata == 8'hEF);
+    `ASSERT_AT(16'h45, rw == 0);
 
 end
 

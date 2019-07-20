@@ -63,27 +63,28 @@ rom r(addr, idata, rw);
 initial begin
     $dumpfile(`VCDOUT);
     $dumpvars(0, test);
-    # 1 reset = 0;
+    # 4 reset = 0;
     # 192 $finish;
 end
 
 always #1
 begin
     clk = !clk;
-    counter <= counter + 1;
+    if (clk)
+        counter <= counter + 1;
 
     // Load timestamps are at the end of phi2 (falling edge of clk2)
     // Store timestamps are at the begin of phi2 (rising edge of clk2)
 
     // INX, STX
-    `ASSERT_AT(16'h3f, addr == 16'h0080);
-    `ASSERT_AT(16'h3f, odata == 8'h01);
-    `ASSERT_AT(16'h3f, rw == 0);
+    `ASSERT_AT(16'h45, addr == 16'h0080);
+    `ASSERT_AT(16'h45, odata == 8'h01);
+    `ASSERT_AT(16'h45, rw == 0);
 
     // DEY, STY
-    `ASSERT_AT(16'h4b, addr == 16'h0081);
-    `ASSERT_AT(16'h4b, odata == 8'hFF);
-    `ASSERT_AT(16'h4b, rw == 0);
+    `ASSERT_AT(16'h51, addr == 16'h0081);
+    `ASSERT_AT(16'h51, odata == 8'hFF);
+    `ASSERT_AT(16'h51, rw == 0);
 
 end
 
