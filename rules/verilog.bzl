@@ -16,8 +16,8 @@ def _verilog_library_impl(ctx):
 verilog_library = rule(
     implementation = _verilog_library_impl,
     attrs = {
-        "hdrs": attr.label_list(allow_files = True),
-        "srcs": attr.label_list(allow_files = True),
+        "hdrs": attr.label_list(allow_files=True),
+        "srcs": attr.label_list(allow_files=True),
         "deps": attr.label_list(),
     },
 )
@@ -45,14 +45,91 @@ def _iverilog_compile(ctx):
 iverilog_compile = rule(
     implementation = _iverilog_compile,
     attrs = {
-        "srcs": attr.label_list(allow_files = True),
+        "srcs": attr.label_list(allow_files=True),
         "deps": attr.label_list(),
         "defines": attr.string_list(),
     },
     outputs = {
         "out": "%{name}.dsn",
     },
-    output_to_genfiles = True,
+    output_to_genfiles=True,
+)
+
+def _verilog_synth(ctx):
+    out = ctx.outputs.out
+    tsrcs = get_transitive_srcs(ctx.files.srcs, ctx.attr.deps)
+    srcs = tsrcs.to_list()
+
+    defines = []
+    for d in ctx.attr.defines:
+        defines.extend(["-D", d])
+    srcpaths = [src.path for src in srcs if src.path.endswith(".v")]
+    cmd = ctx.attr.synth + " -top " + ctx.attr.top + " -json " + out.path
+
+    ctx.actions.run(
+        outputs = [ctx.outputs.out],
+        inputs = srcs,
+        arguments = ["-p", cmd] + defines + srcpaths,
+        executable = ctx.attr._yosys,
+    )
+    return [DefaultInfo()]
+
+verilog_synth = rule(
+    implementation = _verilog_synth,
+    attrs = {
+        "top": attr.string(mandatory=True),
+        "synth": attr.string(default="synth_ice40"),
+        "srcs": attr.label_list(allow_files=True),
+        "deps": attr.label_list(),
+        "defines": attr.string_list(),
+        "_yosys": attr.string(default="/opt/icestorm/bin/yosys"),
+    },
+    outputs = {
+        "out": "%{name}.json",
+    },
+)
+
+def _ice40_binary(ctx):
+    asc = ctx.outputs.asc
+    binary = ctx.outputs.bin
+    srcs = ctx.files.src + ctx.files.pinmap
+
+    ctx.actions.run(
+        outputs = [ctx.outputs.asc],
+        inputs = srcs,
+        arguments = [
+            "--" + ctx.attr.device,
+            "--package", ctx.attr.package,
+            "--json", ctx.files.src[0].path,
+            "--pcf", ctx.files.pinmap[0].path,
+            "--asc", asc.path,
+        ],
+        executable = ctx.attr._pnr,
+    )
+    ctx.actions.run(
+        outputs = [ctx.outputs.bin],
+        inputs = [ctx.outputs.asc],
+        arguments = [asc.path, binary.path],
+        executable = ctx.attr._pack,
+    )
+
+    return [DefaultInfo()]
+
+ice40_binary = rule(
+    implementation = _ice40_binary,
+    attrs = {
+        "device": attr.string(mandatory=True),
+        "package": attr.string(mandatory=True),
+        "src": attr.label(mandatory=True, allow_files=True),
+        "pinmap": attr.label(mandatory=True, allow_files=True),
+        "_pnr": attr.string(default="/opt/icestorm/bin/nextpnr-ice40"),
+        "_pack": attr.string(default="/opt/icestorm/bin/icepack"),
+
+    },
+    outputs = {
+        "asc": "%{name}.asc",
+        "bin": "%{name}.bin",
+    },
 )
 
 def _vvp_test(ctx):
@@ -73,9 +150,9 @@ def _vvp_test(ctx):
 vvp_test = rule(
     implementation = _vvp_test,
     attrs = {
-        "srcs": attr.label_list(allow_files = True),
+        "srcs": attr.label_list(allow_files=True),
     },
-    test = True
+    test=True
 )
 
 def verilog_test(
