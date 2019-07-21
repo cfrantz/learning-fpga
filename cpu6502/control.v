@@ -64,6 +64,7 @@ reg [15:0] cycle = 0;   // cycle counter
 reg rsel = 0;           // rdata mux
 reg [1:0] osel = 0;     // odata mux
 reg acarry = 0;         // alu carry from last address computation
+reg bcarry = 0;         // will need to handle carry on relative branch
 reg pcarry = 0;         // will need to handle carry on relative branch
 reg nmi_last = 1;       // previous nmi signal
 reg nmi_pending = 0;    // NMI edge seen
@@ -192,7 +193,8 @@ assign odata = osel == OSEL_REG ? reg1 :
                osel == OSEL_FLAGS ? {flags[7:6], 1'b1, irq&~nmi_pending, flags[3:0]} :
                osel == OSEL_PCH ? pc[15:8] : 8'bz;
 
-always @(posedge clk4x or negedge nmi)
+//always @(posedge clk4x or negedge nmi)
+always @(posedge clk4x)
 begin
 if (reset)
 begin
@@ -545,8 +547,16 @@ case (phase)
                         wrreg  <= rdreg1;
                         rsel <= RSEL_ALU;
                         regwren <= 1;
-                        alu_cin = full_opcode == 8'hC8 || full_opcode == 8'hE8;
-                        alu_op <= alu_cin ? ALU_ADC : ALU_SBC;
+                        if (full_opcode == 8'hC8 || full_opcode == 8'hE8)
+                        begin
+                            alu_cin <= 1;
+                            alu_op <= ALU_ADC;
+                        end
+                        else
+                        begin
+                            alu_cin <= 0;
+                            alu_op <= ALU_SBC;
+                        end
                         flatch <= FL_RDATA;
                     end
 
@@ -920,6 +930,7 @@ case (phase)
                 rdreg2 <= REG_T;
                 wrreg <= REG_T;
                 rsel <= RSEL_IDATA;
+                bcarry = idata[7];
                 regwren <= 1;
                 incr_pc <= 1;
             end
@@ -1130,7 +1141,7 @@ case (phase)
             RELATIVE_2:     // If we don't need to work on PCH, skip to fetch.
             begin
                 //if (alu_c == reg2[7])
-                if (!(pcarry == alu_c && pcarry != reg2[7]))
+                if (!(pcarry == alu_c && pcarry != bcarry))
                     state <= FETCH_I;
             end
         endcase

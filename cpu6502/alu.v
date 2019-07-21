@@ -14,32 +14,32 @@ module alu(
     output reg n_out);
 
 `include "cpu6502/alu.vh"
-always @*
+always @(op or a or b or c_in)
 begin
     case (op)
         ALU_OR:
-            result <= a | b;
+            result = a | b;
         ALU_AND:
-            result <= a & b;
+            result = a & b;
         ALU_EOR:
-            result <= a ^ b;
+            result = a ^ b;
         ALU_ADC:
         begin
-            {c_out, result} <= {1'b0, a} + {1'b0, b} + {8'b0, c_in};
-            v_out <= ~(a[7] ^ b[7]) & (a[7] ^ result[7]);
+            {c_out, result} = {1'b0, a} + {1'b0, b} + {8'b0, c_in};
+            v_out = ~(a[7] ^ b[7]) & (a[7] ^ result[7]);
         end
         ALU_SHL:
-            {c_out, result} <= {a, c_in};
+            {c_out, result} = {a, c_in};
         ALU_SHR:
-            {result, c_out} <= {c_in, a};
+            {result, c_out} = {c_in, a};
         ALU_CMP,
         ALU_SBC:
         begin
-            {c_out, result} <= {1'b0, a} + {1'b0, ~b} + {8'b0, c_in};
-            v_out <= (a[7] ^ b[7]) & (a[7] ^ result[7]);
+            {c_out, result} = {1'b0, a} + {1'b0, ~b} + {8'b0, c_in};
+            v_out = (a[7] ^ b[7]) & (a[7] ^ result[7]);
         end
     endcase
-    n_out <= result[7];
-    z_out <= ~|result;
+    n_out = result[7];
+    z_out = ~|result;
 end
 endmodule
