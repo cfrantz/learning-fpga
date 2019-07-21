@@ -1,3 +1,10 @@
+; Note:
+; Hacked to run on my simple 6502 experiment.
+;
+; Rebuild with CC65 toolchain:
+; /usr/local/cc65/bin/ca65 --listing tinybasic.lst tinybasic.asm
+; /usr/local/cc65/bin/ld65 -C machine1.cfg -vm --mapfile tinybasic.map -o tinybasic.bin tinybasic.o
+;
 ; v0.2.2
 ;
 ; Bill O'Neill - Last update: 2011/11/11
