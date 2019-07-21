@@ -31,8 +31,8 @@ begin
     counter <= counter + 1;
     if (reset == 1 && counter == 100)
         reset <= 0;
-    if (addr == 16'hc002)
-        ledreg <= idata;
+    if (addr == 16'hc004 && !rw)
+        ledreg <= odata;
 end
 
 

@@ -11,7 +11,6 @@ verilog_library(
     srcs = [
         "machine1.v",
         "base_ram.v",
-        "ewoz_ram.v",
     ],
     deps = [
         "//cpu6502",
@@ -21,6 +20,7 @@ verilog_library(
 
 iverilog_compile(
     name = "vmachine1",
+    srcs = [ "ewoz_ram.v" ],
     deps = [":machine1_lib"],
 )
 
@@ -28,8 +28,7 @@ iverilog_compile(
 verilog_synth(
     name = "machine1-sys",
     top = "machine1",
-    srcs = [
-    ],
+    srcs = [ "ewoz_ram.v" ],
     deps = [
         ":machine1_lib",
     ],
@@ -40,6 +39,24 @@ ice40_binary(
     device = "hx8k",
     package = "ct256",
     src = ":machine1-sys",
+    pinmap = "pinmap_ct256.pcf",
+    force = True,
+)
+
+verilog_synth(
+    name = "machine1-sys-basic",
+    top = "machine1",
+    srcs = [ "basic_ram.v" ],
+    deps = [
+        ":machine1_lib",
+    ],
+)
+
+ice40_binary(
+    name = "machine1-basic",
+    device = "hx8k",
+    package = "ct256",
+    src = ":machine1-sys-basic",
     pinmap = "pinmap_ct256.pcf",
     force = True,
 )
