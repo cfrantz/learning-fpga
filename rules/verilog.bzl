@@ -94,16 +94,21 @@ def _ice40_binary(ctx):
     binary = ctx.outputs.bin
     srcs = ctx.files.src + ctx.files.pinmap
 
+    args = [
+        "--" + ctx.attr.device,
+        "--package", ctx.attr.package,
+        "--json", ctx.files.src[0].path,
+        "--pcf", ctx.files.pinmap[0].path,
+        "--asc", asc.path,
+    ]
+    if ctx.attr.force:
+        args.append("--force")
+
+
     ctx.actions.run(
         outputs = [ctx.outputs.asc],
         inputs = srcs,
-        arguments = [
-            "--" + ctx.attr.device,
-            "--package", ctx.attr.package,
-            "--json", ctx.files.src[0].path,
-            "--pcf", ctx.files.pinmap[0].path,
-            "--asc", asc.path,
-        ],
+        arguments = args,
         executable = ctx.attr._pnr,
     )
     ctx.actions.run(
@@ -122,6 +127,7 @@ ice40_binary = rule(
         "package": attr.string(mandatory=True),
         "src": attr.label(mandatory=True, allow_files=True),
         "pinmap": attr.label(mandatory=True, allow_files=True),
+        "force": attr.bool(default=False),
         "_pnr": attr.string(default="/opt/icestorm/bin/nextpnr-ice40"),
         "_pack": attr.string(default="/opt/icestorm/bin/icepack"),
 
