@@ -2,7 +2,7 @@
 import codecs
 
 vram = ('00' * 1024)
-cram = ('000102030405060708090a0b0c0d0e0f0f0e0d0c0b0a09080706050403020100' +
+cram = ('F00102030405060708090a0b0c0d0e0f0f0e0d0c0b0a090807060504030201F0' +
         '0F' * (1024-32))
 font = """
 0000000000000000
@@ -270,9 +270,9 @@ if __name__ == '__main__':
 
     msg = (
 (b'\x1c\x1d'*16) +
-b'                               ' +
-b'Tiny6502 and TinyVGA Display   ' +
-b'by CF207.                      ')
+b'                                ' +
+b'Tiny6502 and TinyVGA Display    ' +
+b'by CF207.                       ')
 
     for i,v in enumerate(msg):
         vram[i] = v;

@@ -16,10 +16,14 @@ module vga (input CLK12MHz,
 // Since I'm after a more primitive low-res display, I've derived my timing
 // numbers based on the 640x480, but I'm only after 256x240.
 
+// I've pushed front porch/back porch by 8 pixels so that c_hor will lead
+// the beam position by 8-pixels.  This allows easier prefetching of char,
+// color and chr-rom data one character cell ahead of time.
+
 parameter h_pulse = 46;     // H-sync pulse = 3.83us
-parameter h_bp = 23+24;     // back porch pulse width
+parameter h_bp = 23+24-8;     // back porch pulse width
 parameter h_pixels = 256;   // Number of horizontal pixels
-parameter h_fp = 6+24;      // front porch pulse width
+parameter h_fp = 6+24+8;      // front porch pulse width
 parameter h_pol = 1'b0;     // hsync polarity
 parameter h_frame = 379;    // Total horizontal frame (46+48+256+31)
 
@@ -37,7 +41,6 @@ reg [9:0] c_hor = 0;            // Complete frame register column
 reg [9:0] c_ver = 0;            // Complete frame register row
 reg [7:0] pix_x = 0;            // visible pixel coordinate
 reg [7:0] pix_y = 0;            // visible pixel coordinate
-reg disp_en = 0;                // display on
 
 reg [7:0] next_char;
 reg [7:0] next_color;
@@ -94,22 +97,14 @@ always @(posedge vga_clk) begin
         end
 
         // Update pixel position if inside the visible portion of the display
-        if (c_hor < h_pixels) begin
+        if (c_hor < h_pixels + 8) begin
             pix_x <= c_hor;
         end
         if (c_ver < v_pixels) begin
             pix_y <= c_ver[8:1];
         end
 
-        // Display enable
-        if (c_hor < h_pixels && c_ver < v_pixels) begin
-            disp_en <= 1;
-        end
-        else begin
-            disp_en <= 0;
-        end
-
-        if (disp_en) begin
+        if (c_hor <= h_pixels && c_ver < v_pixels) begin
             case(pix_x[2:0])
                 3'b000: 
                     next_char <= vram[{2'b00, pix_y[7:3], pix_x[7:3]}];
@@ -132,6 +127,8 @@ always @(posedge vga_clk) begin
                     cur_color <= next_color;
                 end
             endcase
+        end
+        if (c_hor >= 8 && c_hor < h_pixels+8 && c_ver < v_pixels) begin
             color <= cur_bitmap[3'b111 - pix_x[2:0]] ? cur_color[3:0] : cur_color[7:4];
             //color <= cur_color[3:0];
         end
