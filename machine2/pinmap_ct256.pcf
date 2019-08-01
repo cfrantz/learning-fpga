@@ -1,0 +1,29 @@
+# example.pcf
+set_io --warn-no-port led1 B5
+set_io --warn-no-port led2 B4
+set_io --warn-no-port led3 A2
+set_io --warn-no-port led4 A1
+set_io --warn-no-port led5 C5
+set_io --warn-no-port led6 C4
+set_io --warn-no-port led7 B3
+set_io --warn-no-port led8 C3
+set_io --warn-no-port hwclk J3
+# FTDI / UART pins
+set_io --warn-no-port ftdi_tx B12
+set_io --warn-no-port ftdi_rx B10
+
+# VGA signals
+set_io --warn-no-port vga_hs C16
+set_io --warn-no-port vga_vs D16
+
+set_io --warn-no-port vga_r[2] B16
+set_io --warn-no-port vga_r[1] D14
+set_io --warn-no-port vga_r[0] D15
+
+set_io --warn-no-port vga_g[2] F16
+set_io --warn-no-port vga_g[1] G16
+set_io --warn-no-port vga_g[0] H16
+
+set_io --warn-no-port vga_b[2] E14
+set_io --warn-no-port vga_b[1] F15
+set_io --warn-no-port vga_b[0] G15
