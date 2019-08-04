@@ -6,7 +6,7 @@ module vga (input CLK12MHz,
             input rw,
             input [7:0] idata,
             input [11:0] addr,
-            output reg [7:0] odata,
+            output [7:0] odata,
             output reg [3:0] color,
             output reg hsync,
             output reg vsync);
@@ -54,6 +54,8 @@ reg [7:0] cur_char;
 reg [7:0] cur_color;
 reg [7:0] cur_bitmap = 8'h0f;
 reg [11:0] cpuaddr;
+reg [7:0] cpudata;
+reg [7:0] cpuread;
 
 wire [11:0] vaddr;
 wire [7:0] vdata;
@@ -62,10 +64,11 @@ reg cpuwr;
 reg last_ce;
 reg last_we;
 reg [3:0] vstate;
+reg [1:0] cstate;
 
+assign odata = (ce && rw) ? cpuread : 8'bz;
 
-//assign vaddr =  (cpurd || cpuwr) ?  cpuaddr :
-assign vaddr =  
+assign vaddr =  (vstate[0] == 0 && (cpurd || cpuwr)) ?  cpuaddr :
                 (vstate[3:1] == 3'b000) ?  {2'b00, c_ver[8:4], c_hor[8:4]} :
                 (vstate[3:1] == 3'b001) ?  {2'b01, c_ver[8:4], c_hor[8:4]} :
                 (vstate[3:1] == 3'b010) ?  {1'b1, next_char, c_ver[3:1]} : 0;
@@ -73,20 +76,21 @@ assign vaddr =
 vram vram0(
     .clk(vga_clk),
     .address(vaddr),
-    //.wdata(8'bz),
-    .rw(1'b1),
+    .wdata(cpudata),
+    .rw(~cpuwr),
     .rdata(vdata));
 
 always @(posedge vga_clk) begin
 
-//    if (cpurd) begin
-//        odata <= vram[vaddr];
-//        cpurd <= 0;
-//    end
-//    if (cpuwr) begin
-//        vram[vaddr] <= idata;
-//        cpuwr <= 0;
-//    end
+    if (cstate == 2'b10) begin
+        if (cpurd) begin
+            cpuread <= vdata;
+            cpurd <= 0;
+        end
+        if (cpuwr) begin
+            cpuwr <= 0;
+        end
+    end
 
     if (reset) begin
         c_hor <= 0;
@@ -101,11 +105,14 @@ always @(posedge vga_clk) begin
         if (ce && ~last_ce) begin
             cpurd <= 1;
             cpuaddr <= addr;
+            cstate <= 0;
         end
         last_ce <= ce;
         if (ce && ~rw && ~last_we) begin
             cpuwr <= 1;
             cpuaddr <= addr;
+            cpudata <= idata;
+            cstate <= 0;
         end
         last_we <= (ce && ~rw);
 
@@ -148,7 +155,8 @@ always @(posedge vga_clk) begin
                 cur_color <= next_color;
                 vstate <= 0;
             end
-            else if (cpurd || cpuwr) begin
+            else if (vstate[0] == 0 && (cpurd || cpuwr)) begin
+                cstate <= cstate + 2'b01;
             end
             else begin
                 case(vstate)
@@ -159,13 +167,10 @@ always @(posedge vga_clk) begin
                 vstate <= vstate + 4'b0001;
             end
         end
-        else
-        begin
-            if (ce && rw)
-                odata <= vram[addr];
-            if (ce && ~rw)
-                vram[addr] <= idata;
+        else begin
+            cstate <= cstate + 2'b01;
         end
+
         if (c_hor >= leader && c_hor < h_pixels+leader && c_ver < v_pixels) begin
             color <= cur_bitmap[3'b111 - c_hor[3:1]] ? cur_color[3:0] : cur_color[7:4];
         end
