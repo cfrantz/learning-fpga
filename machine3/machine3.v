@@ -94,24 +94,26 @@ ewoz_ram monitor(
     .ce(addr[19:12] == 8'b1111_1111 && ~mmucs),
     .rdata(idata));
 
-// The Serial port is located at $FC000-$FC003
+// The Serial port is located at $FB000-$FB003
 uart serial_port(
     .clk(hwclk),
     .rst(reset),
     .rx_line(ftdi_rx),
     .tx_line(ftdi_tx),
-    .cs(addr[19:2] == 18'b1111_1100_0000_0000_00),
+    .cs(addr[19:2] == 18'b1111_1011_0000_0000_00),
     .addr(addr[1:0]),
     .rw(rw),
     .idata(odata),
     .odata(idata));
 
+// The VDC vram is mapped at $FC000.
+// The VDC regs are ampped at $FB100 - $FB13F.
 vdc vdc0(
     .clk(hwclk),
     .phi2(clk2),
     .reset(reset),
-    .vram_cs(addr[19:12] == 8'b1111_1010),
-    .vreg_cs(addr[19:8] == 12'b1111_1100_0001),
+    .vram_cs(addr[19:12] == 8'b1111_1100),
+    .vreg_cs(addr[19:8] == 12'b1111_1011_0001),
     .rw(rw),
     .addr(addr[11:0]),
     .idata(odata),
