@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import sys
 import codecs
 
 vram = ('00' * 1024)
@@ -268,6 +269,10 @@ if __name__ == '__main__':
             codecs.decode(cram, 'hex') +
             codecs.decode(font, 'hex'))
 
+    for a in sys.argv[1:]:
+        data = open(a, 'rb').read()
+        vram += data
+
     msg = (
 (b'\x1c\x1d'*16) +
 b'                                ' +
@@ -278,5 +283,5 @@ b'by CF207.                       ')
         vram[i] = v;
 
     for i,v in enumerate(vram):
-        print("vram[12'h%03x] = 8'h%02x;" % (i, v))
+        print("mem[%d] = 8'h%02x;" % (i, v))
 

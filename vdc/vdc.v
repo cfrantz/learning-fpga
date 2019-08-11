@@ -4,7 +4,7 @@ module vdc(
     input reset,
     input vram_cs,
     input vreg_cs,
-    input [11:0] addr,
+    input [13:0] addr,
     input rw,
     input [7:0] idata,
     output [7:0] odata,
@@ -13,45 +13,17 @@ module vdc(
     output [3:0] vga_b,
     output vga_hs,
     output vga_vs,
-    output [7:0] leds);
+    output [7:0] led);
 
-reg [7:0] counter = 0;
-reg [1:0] arb;
-reg cpu;
-
-// Arbitrate who talks to VRAM:
-// clk | phi2 | who
-// ----|------|----------
-//   0 |    0 | vga
-//   1 |    0 | cpu
-//   2 |    1 | cpu
-//   3 |    0 | vga
-
-always @(posedge clk)
-begin
-    if (reset)
-        arb <= 2'b11;
-    else if (phi2)
-        arb[1:0] <= 2'b10;
-    else
-        arb <= arb + 1;
-
-    cpu <= (arb == 2'b00 || arb == 2'b01);
-end
-
-always @(posedge vga_vs)
-    counter <= counter + 1;
-    
-wire [15:0] vramstart;  // Vram start relative to beginning of VRAM
-wire [15:0] cramstart;  // CHR RAM start relative to beginning of VRAM
-wire [11:0] vga_addr;   // VGA requested address
+wire [13:0] vga_addr;   // VGA requested address
 wire [7:0] rdata;       // Register file read data
 wire [7:0] vdata;       // VRAM read data for vga
 wire [3:0] color;       // VGA color selection
 
-assign leds = counter;
-assign odata = vreg_cs ? rdata :
-               vram_cs ? vdata : 8'bz;
+wire [1:0] sel;
+assign sel = {vram_cs, vreg_cs};
+
+assign odata = rdata;
 
 vreg vreg0(
     .clk(clk),
@@ -62,8 +34,7 @@ vreg vreg0(
     .ce(vreg_cs),
     .rdata(rdata),
     .cdata({vga_r, vga_g, vga_b}),
-    .vramstart(vramstart),
-    .cramstart(cramstart));
+    .led(led));
 
 vga vga0(
     .CLK12MHz(clk),
@@ -73,7 +44,7 @@ vga vga0(
     .ce(vram_cs),
     .idata(idata),
     .addr(addr),
-    .odata(vdata),
+    .odata(rdata),
     .color(color),
     .hsync(vga_hs),
     .vsync(vga_vs));

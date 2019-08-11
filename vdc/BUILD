@@ -13,6 +13,7 @@ verilog_library(
     srcs = [
         "vdc.v",
         "vga.v",
+        "vram.v",
         "vreg.v",
     ],
 )

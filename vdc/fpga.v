@@ -24,7 +24,6 @@ vdc vdc0(
     .vga_g({vga_g, xg}),
     .vga_b({vga_b, xb}),
     .vga_hs(vga_hs),
-    .vga_vs(vga_vs),
-    .leds(led));
+    .vga_vs(vga_vs));
 
 endmodule

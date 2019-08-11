@@ -5,42 +5,48 @@ module vga (input CLK12MHz,
             input ce,
             input rw,
             input [7:0] idata,
-            input [11:0] addr,
-            output reg [7:0] odata,
+            input [13:0] addr,
+            output [7:0] odata,
             output reg [3:0] color,
             output reg hsync,
             output reg vsync);
-
-// The normal dotclock for VGA is 25.175 MHz.  The OLIMEX HX8K board has a
-// 100 Mhz oscillator and divides this by 4 to get a 25Mhz clock.
-// Since I'm after a more primitive low-res display, I've derived my timing
-// numbers based on the 640x480, but I'm only after 256x240.
 
 // I've pushed front porch/back porch by 8 pixels so that c_hor will lead
 // the beam position by 8-pixels.  This allows easier prefetching of char,
 // color and chr-rom data one character cell ahead of time.
 
-parameter h_pulse = 46;     // H-sync pulse = 3.83us
-parameter h_bp = 23+24-8;     // back porch pulse width
-parameter h_pixels = 256;   // Number of horizontal pixels
-parameter h_fp = 6+24+8;      // front porch pulse width
+parameter h_pulse = 96;     // H-sync pulse = 3.83us
+parameter leader = 16;
+parameter h_bp = 48-leader; // back porch pulse width
+parameter h_pixels = 512;   // Number of horizontal pixels
+parameter h_fp = 128+16+leader;      // front porch pulse width
 parameter h_pol = 1'b0;     // hsync polarity
-parameter h_frame = 379;    // Total horizontal frame (46+48+256+31)
+parameter h_frame = 800;    // Total horizontal frame (46+48+256+31)
 
 parameter v_pulse = 2;      // v-sync pulse width
-parameter v_bp = 33;        // back porch pulse width
+parameter v_bp = 31;        // back porch pulse width
 parameter v_pixels = 480;   // number of vertical pixels
-parameter v_fp = 10;        // front porch width
+parameter v_fp = 11;        // front porch width
 parameter v_pol = 1'b1;     // vsync polarity
 parameter v_frame = 525;    // Total vertical frame (2+33+480+10)
 
-wire vga_clk = CLK12MHz;
+wire vga_clk2x;
+reg vga_clk = 0;
+SB_PLL40_CORE #(
+        .FEEDBACK_PATH("SIMPLE"),
+        .DIVR(4'b0000),
+        .DIVF(7'b1000010),
+        .DIVQ(3'b100),
+        .FILTER_RANGE(3'b001)
+    ) uut (
+        .RESETB(1'b1),
+        .BYPASS(1'b0),
+        .REFERENCECLK(CLK12MHz),
+        .PLLOUTCORE(vga_clk2x));
 
 // Video color and sync registers
 reg [9:0] c_hor = 0;            // Complete frame register column
 reg [9:0] c_ver = 0;            // Complete frame register row
-reg [7:0] pix_x = 0;            // visible pixel coordinate
-reg [7:0] pix_y = 0;            // visible pixel coordinate
 
 reg [7:0] next_char;
 reg [7:0] next_color;
@@ -49,10 +55,30 @@ reg [7:0] cur_char;
 reg [7:0] cur_color;
 reg [7:0] cur_bitmap = 8'h0f;
 
-reg [7:0] vram[0:4095];
-initial
-begin
-`include "vdc/vram_init.vh"
+wire [13:0] vaddr;
+wire [7:0] vdata;
+reg [3:0] vstate;
+
+assign vaddr =  (vstate[3:1] == 3'b000) ?  {4'b0000, c_ver[8:4], c_hor[8:4]} :
+                (vstate[3:1] == 3'b001) ?  {4'b0001, c_ver[8:4], c_hor[8:4]} :
+                (vstate[3:1] == 3'b010) ?  {3'b001, next_char, c_ver[3:1]} : 0;
+
+vram vram0(
+    .clk2x(vga_clk2x),
+    .addr_a(addr),
+    .wdata_a(idata),
+    .cs_a(ce),
+    .rw_a(rw),
+    .rdata_a(odata),
+
+    .addr_b(vaddr),
+    .wdata_b(8'b0),
+    .cs_b(1'b1),
+    .rw_b(1'b1),
+    .rdata_b(vdata));
+
+always @(posedge vga_clk2x) begin
+    vga_clk = ~vga_clk;
 end
 
 always @(posedge vga_clk) begin
@@ -60,10 +86,9 @@ always @(posedge vga_clk) begin
     if (reset) begin
         c_hor <= 0;
         c_ver <= 0;
-        pix_x <= 0;
-        pix_y <= 0;
         hsync <= ~h_pol;
         vsync <= ~v_pol;
+        vstate <= 0;
     end
     else begin
         // Update beam position 
@@ -72,6 +97,7 @@ always @(posedge vga_clk) begin
         end
         else begin
             c_hor <= 0;
+            vstate <= 0;
             if (c_ver < v_frame - 1) begin
                 c_ver <= c_ver + 1;
             end
@@ -96,52 +122,25 @@ always @(posedge vga_clk) begin
             vsync <= v_pol;
         end
 
-        // Update pixel position if inside the visible portion of the display
-        if (c_hor < h_pixels + 8) begin
-            pix_x <= c_hor;
-        end
-        if (c_ver < v_pixels) begin
-            pix_y <= c_ver[8:1];
+        if (c_hor <= h_pixels && c_ver < v_pixels) begin
+            if (c_hor[3:0] == 4'b1111) begin
+                cur_bitmap <= next_bitmap;
+                cur_char <= next_char;
+                cur_color <= next_color;
+                vstate <= 0;
+            end
+            else begin
+                case(vstate)
+                    4'b0001: next_char <= vdata;
+                    4'b0011: next_color <= vdata;
+                    4'b0101: next_bitmap <= vdata;
+                endcase
+                vstate <= vstate + 4'b0001;
+            end
         end
 
-        if (c_hor <= h_pixels && c_ver < v_pixels) begin
-            case(pix_x[2:0])
-                3'b000: 
-                    next_char <= vram[{2'b00, pix_y[7:3], pix_x[7:3]}];
-                3'b001: 
-                    if (ce && rw)
-                        odata <= vram[addr];
-                3'b010:
-                    if (ce && ~rw)
-                        vram[addr] <= idata;
-                3'b011:
-                    ;
-                3'b100:
-                    next_color <= vram[{2'b01, pix_y[7:3], pix_x[7:3]}];
-                3'b101:
-                    if (ce && rw)
-                        odata <= vram[addr];
-                3'b110:
-                    if (ce && ~rw)
-                        vram[addr] <= idata;
-                3'b111:
-                begin
-                    cur_bitmap <= vram[{1'b1, next_char, pix_y[2:0]}];
-                    cur_char <= next_char;
-                    cur_color <= next_color;
-                end
-            endcase
-        end
-        else
-        begin
-            if (ce && rw)
-                odata <= vram[addr];
-            if (ce && ~rw)
-                vram[addr] <= idata;
-        end
-        if (c_hor >= 8 && c_hor < h_pixels+8 && c_ver < v_pixels) begin
-            color <= cur_bitmap[3'b111 - pix_x[2:0]] ? cur_color[3:0] : cur_color[7:4];
-            //color <= cur_color[3:0];
+        if (c_hor >= leader && c_hor < h_pixels+leader && c_ver < v_pixels) begin
+            color <= cur_bitmap[3'b111 - c_hor[3:1]] ? cur_color[3:0] : cur_color[7:4];
         end
         else begin
             color <= 0;

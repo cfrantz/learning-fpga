@@ -1,33 +1,40 @@
 module vreg(
     input clk,
-    input wire [5:0] address,
-    input wire [7:0] wdata,
-    input wire [3:0] color,
-    input wire rw,
-    input wire ce,
-    output wire [7:0] rdata,
-    output wire [11:0] cdata,
-    output wire [15:0] vramstart,
-    output wire [15:0] cramstart);
+    input [5:0] address,
+    input [7:0] wdata,
+    input [3:0] color,
+    input rw,
+    input ce,
+    output [7:0] rdata,
+    output [11:0] cdata,
+    output [15:0] vramstart,
+    output [15:0] cramstart,
+    output [7:0] led);
 
 reg [7:0] mem[0:63];
-reg [7:0] ldata;
+reg [7:0] value;
+reg [7:0] leddata;
 
 assign cdata = {
     mem[{2'b01, color}][7:4],
     mem[{2'b10, color}][7:4],
     mem[{2'b11, color}][7:4]};
 
-assign rdata = (ce && rw) ? ldata : 8'bz;
+assign rdata = (ce && rw) ? value : 8'bz;
+assign led = value;
 
 assign vramstart = {mem[1], mem[0]};
 assign cramstart = {mem[3], mem[2]};
 
 always @(posedge clk)
 begin
-    ldata <= mem[address];
+    if (ce)
+        value <= mem[address];
     if (ce && !rw)
+    begin
         mem[address] <= wdata;
+        leddata <= wdata;
+    end
 end
 
 initial
