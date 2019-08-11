@@ -1,0 +1,61 @@
+# example.pcf
+set_io --warn-no-port led[7] B5
+set_io --warn-no-port led[6] B4
+set_io --warn-no-port led[5] A2
+set_io --warn-no-port led[4] A1
+set_io --warn-no-port led[3] C5
+set_io --warn-no-port led[2] C4
+set_io --warn-no-port led[1] B3
+set_io --warn-no-port led[0] C3
+
+set_io --warn-no-port hwclk J3
+# FTDI / UART pins
+set_io --warn-no-port ftdi_tx B12
+set_io --warn-no-port ftdi_rx B10
+
+# VGA signals
+set_io --warn-no-port vga_hs C16
+set_io --warn-no-port vga_vs D16
+
+set_io --warn-no-port vga_r[2] B16
+set_io --warn-no-port vga_r[1] D14
+set_io --warn-no-port vga_r[0] D15
+
+set_io --warn-no-port vga_g[2] F16
+set_io --warn-no-port vga_g[1] G16
+set_io --warn-no-port vga_g[0] H16
+
+set_io --warn-no-port vga_b[2] E14
+set_io --warn-no-port vga_b[1] F15
+set_io --warn-no-port vga_b[0] G15
+
+set_io --warn-no-port extaddr[0] T1
+set_io --warn-no-port extaddr[1] T2
+set_io --warn-no-port extaddr[2] R2
+set_io --warn-no-port extaddr[3] T3
+set_io --warn-no-port extaddr[4] C1
+set_io --warn-no-port extaddr[5] C2
+set_io --warn-no-port extaddr[6] D1
+set_io --warn-no-port extaddr[7] D2
+set_io --warn-no-port extaddr[8] T6
+set_io --warn-no-port extaddr[9] R9
+set_io --warn-no-port extaddr[10] T7
+set_io --warn-no-port extaddr[11] T8
+set_io --warn-no-port extaddr[12] T9
+set_io --warn-no-port extaddr[13] G1
+set_io --warn-no-port extaddr[14] F2
+set_io --warn-no-port extaddr[15] H1
+set_io --warn-no-port extaddr[16] G2
+
+set_io --warn-no-port extdata[0] R4
+set_io --warn-no-port extdata[1] T5
+set_io --warn-no-port extdata[2] R5
+set_io --warn-no-port extdata[3] B1
+set_io --warn-no-port extdata[4] R6
+set_io --warn-no-port extdata[5] J1
+set_io --warn-no-port extdata[6] H2
+set_io --warn-no-port extdata[7] F1
+
+set_io --warn-no-port extram_cs R3
+set_io --warn-no-port extram_we B2
+set_io --warn-no-port extram_oe E2
