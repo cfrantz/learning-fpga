@@ -30,18 +30,19 @@ parameter v_fp = 11;        // front porch width
 parameter v_pol = 1'b1;     // vsync polarity
 parameter v_frame = 525;    // Total vertical frame (2+33+480+10)
 
-wire vga_clk;
+wire vga_clk2x;
+reg vga_clk = 0;
 SB_PLL40_CORE #(
         .FEEDBACK_PATH("SIMPLE"),
         .DIVR(4'b0000),
         .DIVF(7'b1000010),
-        .DIVQ(3'b101),
+        .DIVQ(3'b100),
         .FILTER_RANGE(3'b001)
     ) uut (
         .RESETB(1'b1),
         .BYPASS(1'b0),
         .REFERENCECLK(CLK12MHz),
-        .PLLOUTCORE(vga_clk));
+        .PLLOUTCORE(vga_clk2x));
 
 // Video color and sync registers
 reg [9:0] c_hor = 0;            // Complete frame register column
@@ -53,70 +54,43 @@ reg [7:0] next_bitmap;
 reg [7:0] cur_char;
 reg [7:0] cur_color;
 reg [7:0] cur_bitmap = 8'h0f;
-reg [11:0] cpuaddr;
-reg [7:0] cpudata;
-reg [7:0] cpuread;
 
 wire [11:0] vaddr;
 wire [7:0] vdata;
-reg cpurd;
-reg cpuwr;
-reg last_ce;
-reg last_we;
 reg [3:0] vstate;
-reg [1:0] cstate;
 
-assign odata = (ce && rw) ? cpuread : 8'bz;
-
-assign vaddr =  (vstate[0] == 0 && (cpurd || cpuwr)) ?  cpuaddr :
-                (vstate[3:1] == 3'b000) ?  {2'b00, c_ver[8:4], c_hor[8:4]} :
+assign vaddr =  (vstate[3:1] == 3'b000) ?  {2'b00, c_ver[8:4], c_hor[8:4]} :
                 (vstate[3:1] == 3'b001) ?  {2'b01, c_ver[8:4], c_hor[8:4]} :
                 (vstate[3:1] == 3'b010) ?  {1'b1, next_char, c_ver[3:1]} : 0;
 
 vram vram0(
-    .clk(vga_clk),
-    .address(vaddr),
-    .wdata(cpudata),
-    .rw(~cpuwr),
-    .rdata(vdata));
+    .clk2x(vga_clk2x),
+    .addr_a(addr),
+    .wdata_a(idata),
+    .cs_a(ce),
+    .rw_a(rw),
+    .rdata_a(odata),
+
+    .addr_b(vaddr),
+    .wdata_b(8'b0),
+    .cs_b(1'b1),
+    .rw_b(1'b1),
+    .rdata_b(vdata));
+
+always @(posedge vga_clk2x) begin
+    vga_clk = ~vga_clk;
+end
 
 always @(posedge vga_clk) begin
-
-    if (cstate == 2'b10) begin
-        if (cpurd) begin
-            cpuread <= vdata;
-            cpurd <= 0;
-        end
-        if (cpuwr) begin
-            cpuwr <= 0;
-        end
-    end
 
     if (reset) begin
         c_hor <= 0;
         c_ver <= 0;
         hsync <= ~h_pol;
         vsync <= ~v_pol;
-        cpurd <= 0;
-        cpuwr <= 0;
         vstate <= 0;
     end
     else begin
-        if (ce && ~last_ce) begin
-            cpurd <= 1;
-            cpuaddr <= addr;
-            cstate <= 0;
-        end
-        last_ce <= ce;
-        if (ce && ~rw && ~last_we) begin
-            cpuwr <= 1;
-            cpuaddr <= addr;
-            cpudata <= idata;
-            cstate <= 0;
-        end
-        last_we <= (ce && ~rw);
-
-
         // Update beam position 
         if (c_hor < h_frame - 1) begin
             c_hor <= c_hor + 1;
@@ -155,9 +129,6 @@ always @(posedge vga_clk) begin
                 cur_color <= next_color;
                 vstate <= 0;
             end
-            else if (vstate[0] == 0 && (cpurd || cpuwr)) begin
-                cstate <= cstate + 2'b01;
-            end
             else begin
                 case(vstate)
                     4'b0001: next_char <= vdata;
@@ -166,9 +137,6 @@ always @(posedge vga_clk) begin
                 endcase
                 vstate <= vstate + 4'b0001;
             end
-        end
-        else begin
-            cstate <= cstate + 2'b01;
         end
 
         if (c_hor >= leader && c_hor < h_pixels+leader && c_ver < v_pixels) begin

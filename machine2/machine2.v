@@ -7,14 +7,7 @@ module machine2(
     output [2:0] vga_b,
     output vga_hs,
     output vga_vs,
-    output led1,
-    output led2,
-    output led3,
-    output led4,
-    output led5,
-    output led6,
-    output led7,
-    output led8);
+    output [7:0] led);
 
 reg reset = 1;
 reg [31:0] counter = 0;
@@ -31,7 +24,6 @@ wire clk2;
 
 wire xr, xg, xb;
 
-
 // Reset circuit: hold in reset for 100 clocks.
 always @(posedge hwclk)
 begin
@@ -41,7 +33,6 @@ begin
     if (addr == 16'hc004 && !rw)
         ledreg <= odata;
 end
-
 
 cpu6502 cpu(
     .clk4x(hwclk),
@@ -55,15 +46,6 @@ cpu6502 cpu(
     .clk1(clk1),
     .clk2(clk2));
 
-assign led1 = ledreg[7];
-assign led2 = ledreg[6];
-assign led3 = ledreg[5];
-assign led4 = ledreg[4];
-assign led5 = ledreg[3];
-assign led6 = ledreg[2];
-assign led7 = ledreg[1];
-assign led8 = ledreg[0];
-    
 // RAM bank0 is located at $0000-$0FFF
 ram bank0(
     .clk(hwclk),
@@ -108,6 +90,7 @@ vdc vdc0(
     .vga_g({vga_g, xg}),
     .vga_b({vga_b, xb}),
     .vga_hs(vga_hs),
-    .vga_vs(vga_vs));
+    .vga_vs(vga_vs),
+    .led(led));
 
 endmodule

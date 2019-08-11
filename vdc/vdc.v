@@ -71,9 +71,9 @@ vga vga0(
     .reset(reset),
     .rw(rw),
     .ce(vram_cs),
-    .idata(vdata),
+    .idata(idata),
     .addr(addr),
-    .odata(odata),
+    .odata(vdata),
     .color(color),
     .hsync(vga_hs),
     .vsync(vga_vs));

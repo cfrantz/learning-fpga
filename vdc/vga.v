@@ -109,17 +109,21 @@ always @(posedge vga_clk) begin
                 3'b000: 
                     next_char <= vram[{2'b00, pix_y[7:3], pix_x[7:3]}];
                 3'b001: 
-                    ;
+                    if (ce && rw)
+                        odata <= vram[addr];
                 3'b010:
-                    ;
+                    if (ce && ~rw)
+                        vram[addr] <= idata;
                 3'b011:
                     ;
                 3'b100:
                     next_color <= vram[{2'b01, pix_y[7:3], pix_x[7:3]}];
                 3'b101:
-                    ;
+                    if (ce && rw)
+                        odata <= vram[addr];
                 3'b110:
-                    ;
+                    if (ce && ~rw)
+                        vram[addr] <= idata;
                 3'b111:
                 begin
                     cur_bitmap <= vram[{1'b1, next_char, pix_y[2:0]}];
@@ -127,6 +131,13 @@ always @(posedge vga_clk) begin
                     cur_color <= next_color;
                 end
             endcase
+        end
+        else
+        begin
+            if (ce && rw)
+                odata <= vram[addr];
+            if (ce && ~rw)
+                vram[addr] <= idata;
         end
         if (c_hor >= 8 && c_hor < h_pixels+8 && c_ver < v_pixels) begin
             color <= cur_bitmap[3'b111 - pix_x[2:0]] ? cur_color[3:0] : cur_color[7:4];

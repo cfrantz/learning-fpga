@@ -1283,6 +1283,7 @@ CLRSC:   ldx #$19                   ; Load X - we're going to print 25 lines
 CSLP:    jsr SNDCHR                 ; Send the line feed
          dex                        ; One less to do
          bne CSLP                   ; Go send another until we're done
+         jsr SCREENINIT
          rts                        ; Return
 
 ;
@@ -1328,7 +1329,9 @@ GETSTS:  bit UART_TXSTS             ; bit (B7) cleared yet?
          bmi GETSTS                 ; No, wait for display.
          lda $FE                    ; Restore the character
          sta UART_TX                ; Output character.
-EXSC:    rts                        ; Return
+         jmp SCREENOUT
+EXSC:   
+         rts                        ; Return
 
 ;
 ; Break routine
@@ -1343,6 +1346,94 @@ BREAK:   sta $FE                    ; Save A
          sta UART_RXSTS             ; Clear rx status
 NO_CHR:  lda $FE                    ; Restore the saved A value
          rts                        ; Return
+
+SCROLLUP:
+        ldy #0
+loop1:
+        lda $A020,y
+        sta $A000,y
+        lda $A420,y
+        sta $A400,y
+        iny
+        bne loop1
+loop2:
+        lda $A120,y
+        sta $A100,y
+        lda $A520,y
+        sta $A500,y
+        iny
+        bne loop2
+loop3:
+        lda $A220,y
+        sta $A200,y
+        lda $A620,y
+        sta $A600,y
+        iny
+        bne loop3
+loop4:
+        lda $A320,y
+        sta $A300,y
+        lda $A720,y
+        sta $A700,y
+        iny
+        cpy #$c0
+        bne loop4
+        rts
+
+TPTR = $F0
+CPTR = $F2
+
+SCREENOUT:
+        sta $FE
+        lda TPTR+1
+        cmp #$a3
+        bcc txtout
+        lda TPTR
+        cmp #$c0
+        bcc txtout
+        jsr SCROLLUP
+        lda #$A0
+        sta TPTR
+txtout:
+        ldy #0
+        lda $FE
+        cmp #13
+        beq txtcr
+        cmp #10
+        beq txtlf
+        sta (TPTR),y
+        inc TPTR
+        bne txtend
+txtinc:
+        inc TPTR+1
+txtend:
+;        lda #$09            ; cursor char is char 9
+;        sta (TPTR),y
+        lda $FE
+        rts
+txtcr:
+        lda #$00
+        sta (TPTR),y
+        lda TPTR
+        and #$E0
+        sta TPTR
+        lda $FE
+        rts
+txtlf:
+        clc
+        lda TPTR
+        adc #$20
+        sta TPTR
+        bcs txtinc
+        bcc txtend
+
+SCREENINIT:
+        lda #$A0
+        sta TPTR
+        lda #$A0
+        sta TPTR+1
+        rts
+        
 
 .segment "MONITOR"
 .org $FC00

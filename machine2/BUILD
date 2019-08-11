@@ -47,7 +47,10 @@ ice40_binary(
 verilog_synth(
     name = "machine2-sys-basic",
     top = "machine2",
-    srcs = [ "basic_ram.v" ],
+    srcs = [
+        "basic_ram.v",
+        "basic_ram.vh",
+    ],
     deps = [
         ":machine2_lib",
     ],
