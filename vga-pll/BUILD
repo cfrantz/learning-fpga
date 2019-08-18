@@ -15,6 +15,7 @@ verilog_library(
         "vga.v",
         "vram.v",
         "vreg.v",
+        "pll.v",
     ],
 )
 

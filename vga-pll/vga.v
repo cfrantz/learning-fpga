@@ -32,17 +32,11 @@ parameter v_frame = 525;    // Total vertical frame (2+33+480+10)
 
 wire vga_clk2x;
 reg vga_clk = 0;
-SB_PLL40_CORE #(
-        .FEEDBACK_PATH("SIMPLE"),
-        .DIVR(4'b0000),
-        .DIVF(7'b1000010),
-        .DIVQ(3'b100),
-        .FILTER_RANGE(3'b001)
-    ) uut (
-        .RESETB(1'b1),
-        .BYPASS(1'b0),
-        .REFERENCECLK(CLK12MHz),
-        .PLLOUTCORE(vga_clk2x));
+
+// PLL to get a 50.25 MHz clock.
+vgapll pll(
+    .clkin(CLK12MHz),
+    .clkout0(vga_clk2x));
 
 // Video color and sync registers
 reg [9:0] c_hor = 0;            // Complete frame register column
