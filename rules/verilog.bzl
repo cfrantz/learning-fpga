@@ -138,6 +138,59 @@ ice40_binary = rule(
     },
 )
 
+def _ecp5_binary(ctx):
+    asc = ctx.outputs.asc
+    binary = ctx.outputs.bit
+    svf = ctx.outputs.svf
+    srcs = ctx.files.src + ctx.files.pinmap
+
+    args = [
+        "--" + ctx.attr.device,
+        "--package", ctx.attr.package,
+        "--json", ctx.files.src[0].path,
+        "--lpf", ctx.files.pinmap[0].path,
+        "--textcfg", asc.path,
+    ]
+    if ctx.attr.force:
+        args.append("--force")
+
+
+    ctx.actions.run(
+        outputs = [ctx.outputs.asc],
+        inputs = srcs,
+        arguments = args,
+        executable = ctx.attr._pnr,
+    )
+    ctx.actions.run(
+        outputs = [ctx.outputs.bit, ctx.outputs.svf],
+        inputs = [ctx.outputs.asc],
+        arguments = ['--svf', svf.path, asc.path, binary.path],
+        executable = ctx.attr._pack,
+    )
+
+    return [DefaultInfo()]
+
+ecp5_binary = rule(
+    implementation = _ecp5_binary,
+    attrs = {
+        "device": attr.string(mandatory=True),
+        "package": attr.string(mandatory=True),
+        "src": attr.label(mandatory=True, allow_files=True),
+        "pinmap": attr.label(mandatory=True, allow_files=True),
+        "force": attr.bool(default=False),
+        "_pnr": attr.string(default="/opt/icestorm/bin/nextpnr-ecp5"),
+        "_pack": attr.string(default="/opt/icestorm/bin/ecppack"),
+
+    },
+    outputs = {
+        "asc": "%{name}.asc",
+        "bit": "%{name}.bit",
+        "svf": "%{name}.svf",
+    },
+)
+
+
+
 def _vvp_test(ctx):
     paths = []
     for src in ctx.files.srcs:
