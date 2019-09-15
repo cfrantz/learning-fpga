@@ -1,12 +1,10 @@
 // Create a simple VGA output
-module vga (input CLK12MHz,
-            input phi2,
+module vga (input vga_clk,
             input reset,
-            input ce,
-            input rw,
-            input [7:0] idata,
-            input [13:0] addr,
-            output [7:0] odata,
+            input [23:0] vramstart,
+            input [23:0] cramstart,
+            input [7:0] vdata,
+            output [23:0] vaddr,
             output reg [3:0] color,
             output reg hsync,
             output reg vsync);
@@ -30,20 +28,6 @@ parameter v_fp = 11;        // front porch width
 parameter v_pol = 1'b1;     // vsync polarity
 parameter v_frame = 525;    // Total vertical frame (2+33+480+10)
 
-wire vga_clk2x;
-reg vga_clk = 0;
-SB_PLL40_CORE #(
-        .FEEDBACK_PATH("SIMPLE"),
-        .DIVR(4'b0000),
-        .DIVF(7'b1000010),
-        .DIVQ(3'b100),
-        .FILTER_RANGE(3'b001)
-    ) uut (
-        .RESETB(1'b1),
-        .BYPASS(1'b0),
-        .REFERENCECLK(CLK12MHz),
-        .PLLOUTCORE(vga_clk2x));
-
 // Video color and sync registers
 reg [9:0] c_hor = 0;            // Complete frame register column
 reg [9:0] c_ver = 0;            // Complete frame register row
@@ -55,31 +39,11 @@ reg [7:0] cur_char;
 reg [7:0] cur_color;
 reg [7:0] cur_bitmap = 8'h0f;
 
-wire [13:0] vaddr;
-wire [7:0] vdata;
 reg [3:0] vstate;
 
-assign vaddr =  (vstate[3:1] == 3'b000) ?  {4'b0000, c_ver[8:4], c_hor[8:4]} :
-                (vstate[3:1] == 3'b001) ?  {4'b0001, c_ver[8:4], c_hor[8:4]} :
-                (vstate[3:1] == 3'b010) ?  {3'b001, next_char, c_ver[3:1]} : 0;
-
-vram vram0(
-    .clk2x(vga_clk2x),
-    .addr_a(addr),
-    .wdata_a(idata),
-    .cs_a(ce),
-    .rw_a(rw),
-    .rdata_a(odata),
-
-    .addr_b(vaddr),
-    .wdata_b(8'b0),
-    .cs_b(1'b1),
-    .rw_b(1'b1),
-    .rdata_b(vdata));
-
-always @(posedge vga_clk2x) begin
-    vga_clk = ~vga_clk;
-end
+assign vaddr = (vstate[3:1] == 3'b000) ?  vramstart + {3'b000, c_ver[8:4], c_hor[8:4], 1'b0} :
+               (vstate[3:1] == 3'b001) ?  vramstart + {3'b000, c_ver[8:4], c_hor[8:4], 1'b1} :
+               (vstate[3:1] == 3'b010) ?  cramstart + {3'b000, next_char, c_ver[3:1]} : 0;
 
 always @(posedge vga_clk) begin
 

@@ -8,6 +8,8 @@
 
 .include "basic.asm"
 .include "CFFA1_API.s"
+.include "chrset.asm"
+.include "video.asm"
 
 ESC = $1B        ; Escape character
 CR  = $0D        ; Return character
@@ -42,6 +44,16 @@ RES_vec
 	CLD				; clear decimal mode
 	LDX	#$FF			; empty stack
 	TXS				; set the stack
+
+    LDX     #<init_a
+    LDY     #>init_a
+    JSR     PrintString
+    jsr init_chr
+
+    LDX     #<init_b
+    LDY     #>init_b
+    JSR     PrintString
+
 
 ; set up vectors and interrupt code, copy them to page 2
 
@@ -91,6 +103,7 @@ WaitForReady:
 	BIT	UART_TXSTS
 	BMI     WaitForReady
 	STA	UART_TX
+    JSR SCREENOUT
 Ignore:
 	RTS
 
@@ -351,11 +364,18 @@ NMI_CODE
 
 END_CODE
 
+init_a
+    .byte   "InitA", 13, 10, 0
+init_b
+    .byte   "InitB", 13, 10, 0
+
 LAB_mess
 	.byte	$0D,$0A,"6502 EhBASIC [C]old/[W]arm ?",$00
 					; sign on string
 
 ; system vectors
+.org	$FFE0
+.segment "MMU"
 
 .org	$FFFA
 .segment "VECTORS"

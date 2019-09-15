@@ -2,16 +2,19 @@ package(default_visibility=["//visibility:public"])
 load("//rules:verilog.bzl", "verilog_library",
                             "verilog_synth",
                             "verilog_test",
-                            "ice40_binary",
+                            "ecp5_binary",
                             "iverilog_compile",
 )
 
 verilog_library(
     name = "machine3_lib",
     srcs = [
+        "pll.v",
         "machine3.v",
         "mapper.v",
-        "base_ram.v",
+        "main_memory.v",
+        "basic_rom.v",
+        "ehbasic/basic.hex",
     ],
     deps = [
         "//cpu6502",
@@ -23,12 +26,22 @@ verilog_library(
 iverilog_compile(
     name = "vmachine3",
     deps = [":machine3_lib"],
+    defines = [
+        "IVERILOG=1",
+    ],
+    srcs = [
+        "ewoz_ram.v",
+        "ewoz_ram.vh",
+    ],
 )
 
 
 verilog_synth(
     name = "machine3-sys",
     top = "machine3",
+    defines = [
+        "ECP5=1",
+    ],
     srcs = [
         "ewoz_ram.v",
         "ewoz_ram.vh",
@@ -36,25 +49,18 @@ verilog_synth(
     deps = [
         ":machine3_lib",
     ],
+    synth = "synth_ecp5",
 )
 
-ice40_binary(
+ecp5_binary(
     name = "machine3",
-    device = "hx8k",
-    package = "ct256",
+    device = "um5g-85k",
+    package = "CABGA381",
     src = ":machine3-sys",
-    pinmap = "pinmap_ct256.pcf",
+    pinmap = "pinmap_ecp5_bga381.lpf",
     force = True,
 )
 
-ice40_binary(
-    name = "machine3-basic",
-    device = "hx8k",
-    package = "ct256",
-    src = ":machine3-sys-basic",
-    pinmap = "pinmap_ct256.pcf",
-    force = True,
-)
 
 verilog_test(
     name = "boot_test",

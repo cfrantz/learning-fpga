@@ -1,21 +1,21 @@
 // Fake dual port RAM.
 // Run at 2x the clock speed and switch between the two sides.
-module vram(
+module dual_port_ram(
     input clk2x,
-    input [11:0] addr_a,
+    input [16:0] addr_a,
     input [7:0] wdata_a,
     input cs_a,
     input rw_a,
     output [7:0] rdata_a,
 
-    input [11:0] addr_b,
+    input [16:0] addr_b,
     input [7:0] wdata_b,
     input cs_b,
     input rw_b,
     output [7:0] rdata_b);
 
-wire [11:0] address;
-reg [7:0] mem[0:4095];
+wire [13:0] address;
+reg [7:0] mem[0:(128*1024-1)];
 reg [7:0] data;
 reg [7:0] data_a;
 reg [7:0] data_b;
@@ -36,12 +36,6 @@ begin
 
     if ((side==1 && cs_a && !rw_a) || (side==0 && cs_b && !rw_b))
         mem[address] <= side ? wdata_a : wdata_b;
-end
-
-initial
-begin
-`include "vdc/vram_init.vh"
-
 end
 
 endmodule

@@ -37,7 +37,7 @@ mmap[7] = 8'h07;
 
 mmap[8] = 8'h08;
 mmap[9] = 8'h09;
-mmap[10] = 8'hfa;
+mmap[10] = 8'h0a;
 mmap[11] = 8'hfb;
 
 mmap[12] = 8'hfc;

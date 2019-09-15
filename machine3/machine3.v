@@ -7,16 +7,16 @@ module machine3(
     output [2:0] vga_b,
     output vga_hs,
     output vga_vs,
-    inout [7:0] extdata,
-    output [16:0] extaddr,
-    output extram_cs,
-    output extram_we,
-    output extram_oe,
     output [7:0] led);
 
+wire vgaclk2x;
+reg vgaclk = 0;
 reg reset = 1;
 reg [31:0] counter = 0;
 reg [7:0] ledreg = 0;
+
+wire [23:0] vaddr;
+wire [7:0] vdata;
 
 wire [15:0] cpuaddr;
 wire [19:0] addr;
@@ -33,25 +33,23 @@ wire ramcs;
 
 wire xr, xg, xb;
 
+assign led = ~ledreg;
+
+vgapll pll0(
+    .clkin(hwclk),
+    .clkout0(vgaclk2x));
+
 // Reset circuit: hold in reset for 100 clocks.
-always @(posedge hwclk)
+always @(posedge vgaclk2x)
 begin
+    vgaclk <= ~vgaclk;
     counter <= counter + 1;
     if (reset == 1 && counter == 100)
         reset <= 0;
+
+    if (addr == 20'hfb000 && rw == 0)
+        ledreg <= odata;
 end
-
-// Map the external RAM at address $00000 - $10000.
-assign extaddr = addr[16:0];
-assign ramcs = (addr[19:17] == 3'b000);
-// All of these external signals are active low.
-assign extram_cs = ~ramcs;
-assign extram_we = rw;
-assign extram_oe = ~rw;
-
-// Assign output and inputs to the extdata bus.
-assign extdata = (ramcs && ~rw) ? odata : 8'bz;
-assign ram_idata = (ramcs && rw) ? extdata : 8'bz;
 
 cpu6502 cpu(
     .clk4x(hwclk),
@@ -59,7 +57,7 @@ cpu6502 cpu(
     .irq(irq),
     .nmi(nmi),
     .addr(cpuaddr),
-    .idata((ramcs && rw) ? ram_idata : idata),
+    .idata(idata),
     .odata(odata),
     .rw(rw),
     .clk1(clk1),
@@ -76,15 +74,24 @@ mapper mmu0(
     .rdata(idata),
     .address(addr));
 
-// RAM bank0 is located at $FD000-$FDFFF
-ram bank0(
-    .clk(hwclk),
-    .address(addr[11:0]),
-    .wdata(odata),
-    .rw(rw),
-    .ce(addr[19:12] == 8'b1111_1101 && ~mmucs),
-    .rdata(idata));
+dual_port_ram ram0(
+    .clk2x(vgaclk2x),
+    // The CPU is on the A side of the RAM.
+    .addr_a(addr[16:0]),
+    .wdata_a(odata),
+    .rdata_a(idata),
+    .cs_a(addr[19:17] == 3'b000),
+    .rw_a(rw),
 
+
+    // The Video Controller is on the B side of the RAM.
+    .addr_b(vaddr[16:0]),
+    .rdata_b(vdata),
+    .cs_b(1'b1),
+    .rw_b(1'b1)
+);
+
+/*
 // The ROM monitor is located at $F000-$FFFF
 ewoz_ram monitor(
     .clk(hwclk),
@@ -92,6 +99,15 @@ ewoz_ram monitor(
     .wdata(odata),
     .rw(rw),
     .ce(addr[19:12] == 8'b1111_1111 && ~mmucs),
+    .rdata(idata));
+*/
+
+basic_rom rom0(
+    .clk(hwclk),
+    .address(addr[13:0]),
+    .wdata(odata),
+    .rw(rw),
+    .ce(addr[19:14] == 8'b1111_11 && ~mmucs),
     .rdata(idata));
 
 // The Serial port is located at $FB000-$FB003
@@ -106,23 +122,21 @@ uart serial_port(
     .idata(odata),
     .odata(idata));
 
-// The VDC vram is mapped at $FC000.
 // The VDC regs are ampped at $FB100 - $FB13F.
 vdc vdc0(
-    .clk(hwclk),
-    .phi2(clk2),
+    .clk(vgaclk),
     .reset(reset),
-    .vram_cs(addr[19:12] == 8'b1111_1100),
     .vreg_cs(addr[19:8] == 12'b1111_1011_0001),
     .rw(rw),
-    .addr(addr[11:0]),
+    .addr(addr[5:0]),
     .idata(odata),
     .odata(idata),
+    .vaddr(vaddr),
+    .vdata(vdata),
     .vga_r({vga_r, xr}),
     .vga_g({vga_g, xg}),
     .vga_b({vga_b, xb}),
     .vga_hs(vga_hs),
-    .vga_vs(vga_vs),
-    .led(led));
+    .vga_vs(vga_vs));
 
 endmodule

@@ -437,12 +437,12 @@ Ibuffs		= IRQ_vec+$14
 Ibuffe		= Ibuffs+$47; end of input buffer
 
 Ram_base		= $0400	; start of user RAM (set as needed, should be page aligned)
-Ram_top		= $9FFF	; end of user RAM+1 (set as needed, should be page aligned)
+Ram_top		= $9000	; end of user RAM+1 (set as needed, should be page aligned)
 
 ; This start can be changed to suit your system
 
 .segment "CODE"
-.org	$D000
+.org	$C000
 
 ; For convenience, put jump here to reset location so it can be
 ; run from the load address.
@@ -989,6 +989,10 @@ LAB_1359
 LAB_1374
 	CMP	#$08			; compare with [BACKSPACE] (delete last character)
 	BEQ	LAB_134B		; go delete last character
+	CMP	#$7f			; compare with [DEL] (delete last character)
+    BNE LAB_1378
+    LDA #$08            ; translate to backspace
+	BNE	LAB_134B		; go delete last character
 
 LAB_1378
 	CPX	#Ibuffe-Ibuffs	; compare character count with max

@@ -7,13 +7,11 @@ module vreg(
     input ce,
     output [7:0] rdata,
     output [11:0] cdata,
-    output [15:0] vramstart,
-    output [15:0] cramstart,
-    output [7:0] led);
+    output [23:0] vramstart,
+    output [23:0] cramstart);
 
 reg [7:0] mem[0:63];
 reg [7:0] value;
-reg [7:0] leddata;
 
 assign cdata = {
     mem[{2'b01, color}][7:4],
@@ -21,10 +19,9 @@ assign cdata = {
     mem[{2'b11, color}][7:4]};
 
 assign rdata = (ce && rw) ? value : 8'bz;
-assign led = value;
 
-assign vramstart = {mem[1], mem[0]};
-assign cramstart = {mem[3], mem[2]};
+assign vramstart = {mem[2], mem[1], mem[0]};
+assign cramstart = {mem[6], mem[5], mem[4]};
 
 always @(posedge clk)
 begin
@@ -33,18 +30,22 @@ begin
     if (ce && !rw)
     begin
         mem[address] <= wdata;
-        leddata <= wdata;
     end
 end
 
 initial
 begin
-    // VRAM starts at $000
+    // VRAM starts at $9000
     mem[0] = 8'h00;
-    mem[1] = 8'h00;
-    // CRAM starts at $400
+    mem[1] = 8'h90;
     mem[2] = 8'h00;
-    mem[3] = 8'h04;
+    mem[3] = 8'h00;
+
+    // CRAM starts at $a800
+    mem[4] = 8'h00;
+    mem[5] = 8'ha8;
+    mem[6] = 8'h00;
+    mem[7] = 8'h00;
 
     // Palette entries
     // Red

@@ -1,13 +1,13 @@
 // ram holding the EWOZ monitor program
-module ewoz_ram(
+module basic_rom(
     input clk,
-    input wire [11:0] address,
+    input wire [13:0] address,
     input wire [7:0] wdata,
     input wire rw,
     input wire ce,
     output wire [7:0] rdata);
 
-reg [7:0] mem[0:4095];
+reg [7:0] mem[0:16383];
 reg [7:0] ldata;
 
 assign rdata = (ce && rw) ? ldata : 8'bz;
@@ -19,7 +19,5 @@ begin
 //        mem[address] <= wdata;
 end
 
-initial begin
-`include "machine2/basic_ram.vh"
-end
+initial $readmemh("machine3/ehbasic/basic.hex", mem);
 endmodule

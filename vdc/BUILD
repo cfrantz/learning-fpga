@@ -8,12 +8,10 @@ load("//rules:verilog.bzl", "verilog_library",
 verilog_library(
     name = "vdc",
     hdrs = [
-        "vram_init.vh",
     ],
     srcs = [
         "vdc.v",
         "vga.v",
-        "vram.v",
         "vreg.v",
     ],
 )
